@@ -42,7 +42,8 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
   end
 
   let(:type) { FactoryGirl.create(:type_standard) }
-  let(:project) { FactoryGirl.create(:project, types: [type]) }
+  let(:project_types) { [type] }
+  let(:project) { FactoryGirl.create(:project, types: project_types) }
   let(:status) { FactoryGirl.create(:status) }
   let(:priority) { FactoryGirl.create(:priority) }
   let(:work_package_attributes) do
@@ -116,6 +117,218 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
 
         expect(work_package.subject)
           .to eql(attributes[:subject])
+      end
+    end
+
+    describe 'updating project' do
+      let(:target_project) do
+        p = FactoryGirl.create(:project,
+                               types: target_types,
+                               parent: target_parent)
+
+        FactoryGirl.create(:member,
+                           user: user,
+                           project: p,
+                           roles: [FactoryGirl.create(:role, permissions: target_permissions)])
+
+        p
+      end
+      let(:attributes) { { project_id: target_project.id } }
+      let(:target_permissions) { [:move_work_packages] }
+      let(:target_parent) { nil }
+      let(:target_types) { [type] }
+
+      describe 'with missing permissions' do
+        let(:target_permissions) { [] }
+
+        it 'is failure' do
+          expect(subject)
+            .to be_failure
+        end
+      end
+
+      describe 'time_entries' do
+        let!(:time_entries) do
+          [FactoryGirl.create(:time_entry,
+                              project: project,
+                              work_package: work_package),
+           FactoryGirl.create(:time_entry,
+                              project: project,
+                              work_package: work_package)]
+        end
+
+        it 'moves the time entries along' do
+          expect(subject)
+            .to be_success
+
+          expect(TimeEntry.where(id: time_entries.map(&:id)).pluck(:project_id).uniq)
+            .to match_array [target_project.id]
+        end
+
+        describe 'categories' do
+          let(:category) do
+            FactoryGirl.create(:category,
+                               project: project)
+          end
+
+          before do
+            work_package.category = category
+            work_package.save!
+          end
+
+          context 'with equally named category' do
+            let!(:target_category) do
+              FactoryGirl.create(:category,
+                                 name: category.name,
+                                 project: target_project)
+            end
+
+            it 'replaces the current category by the qually named one' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.category)
+                .to eql target_category
+            end
+          end
+
+          context 'w/o target category' do
+            let!(:other_category) do
+              FactoryGirl.create(:category,
+                                 project: target_project)
+            end
+
+            it 'removes the category' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.category)
+                .to be_nil
+            end
+          end
+        end
+
+        describe 'version' do
+          let(:sharing) { 'none' }
+          let(:version) do
+            FactoryGirl.create(:version,
+                               status: 'open',
+                               project: project,
+                               sharing: sharing)
+          end
+          let(:work_package) do
+            FactoryGirl.create(:work_package,
+                               fixed_version: version,
+                               project: project)
+          end
+
+          context 'unshared version' do
+            it 'removes the version' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.fixed_version)
+                .to be_nil
+            end
+          end
+
+          context 'system wide shared version' do
+            let(:sharing) { 'system' }
+
+            it 'keeps the version' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.fixed_version)
+                .to eql version
+            end
+          end
+
+          context 'move work package in project hierarchy' do
+            let(:target_parent) do
+              project
+            end
+
+            context 'unshared version' do
+              it 'removes the version' do
+                expect(subject)
+                  .to be_success
+
+                expect(subject.result.first.fixed_version)
+                  .to be_nil
+              end
+            end
+
+            context 'shared version' do
+              let(:sharing) { 'tree' }
+
+              it 'keeps the version' do
+                expect(subject)
+                  .to be_success
+
+                expect(subject.result.first.fixed_version)
+                  .to eql version
+              end
+            end
+          end
+        end
+
+        describe 'type' do
+          let(:target_types) { [type, other_type] }
+          let(:other_type) { FactoryGirl.create(:type) }
+          let(:default_type) { type }
+          let(:project_types) { [type, other_type] }
+          # otherwise ar error
+          let!(:default_status) { FactoryGirl.create(:default_status) }
+
+          context 'with the type existing in the target project' do
+            it 'keeps the type' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.type)
+                .to eql type
+            end
+          end
+
+          context 'with a default type existing in the target project' do
+            let(:target_types) { [other_type, default_type] }
+
+            it 'uses the default type' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.type)
+                .to eql default_type
+            end
+          end
+
+          context 'with only non default types' do
+            let(:target_types) { [other_type] }
+
+            it 'uses the first type' do
+              expect(subject)
+                .to be_success
+
+              expect(subject.result.first.type)
+                .to eql other_type
+            end
+          end
+
+          context 'with an invalid type being provided' do
+            let(:target_types) { [type] }
+
+            let(:attributes) do
+              { project: target_project,
+                type: other_type }
+            end
+
+            it 'is unsuccessful' do
+              expect(subject)
+                .to be_failure
+            end
+          end
+        end
       end
     end
 

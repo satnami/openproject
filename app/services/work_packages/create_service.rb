@@ -28,50 +28,54 @@
 # See doc/COPYRIGHT.rdoc for more details.
 #++
 
-class ServiceResult
-  attr_accessor :success,
-                :errors,
-                :result
+class WorkPackages::CreateService
+  attr_accessor :user, :work_package
 
-  def initialize(success: false,
-                 errors: ActiveModel::Errors.new(self),
-                 result: nil)
-    self.success = success
-    self.errors = errors
-    self.result = result
+  def initialize(user:)
+    self.user = user
   end
 
-  alias success? :success
-
-  def failure?
-    !success?
-  end
-
-  def merge!(other)
-    merge_success!(other)
-    merge_errors!(other)
-    merge_result!(other)
-  end
-
-  private
-
-  def merge_success!(other)
-    self.success &&= other.success
-  end
-
-  def merge_result!(other)
-    if other.result.is_a?(Array)
-      self.result += other.result
-    else
-      self.result << other.result
+  def call(attributes: {}, send_notifications: true)
+    as_user_and_sending(send_notifications) do
+      create(attributes)
     end
   end
 
-  def merge_errors!(other)
-    if other.errors.is_a?(Array)
-      self.errors += other.errors
-    else
-      self.errors << other.errors
+  # TODO: update parent (inherit)
+
+  protected
+
+  def create(attributes)
+    wp = WorkPackage.new
+
+    set_attributes = WorkPackages::SetAttributesService
+                     .new(user: user,
+                          work_package: wp,
+                          contract: WorkPackages::CreateContract)
+                     .call(attributes: attributes)
+
+    if set_attributes.success?
+      set_attributes.result.save
     end
+
+    set_attributes
+  end
+
+  def as_user_and_sending(send_notifications)
+    result = nil
+
+    WorkPackage.transaction do
+      User.execute_as user do
+        JournalManager.with_send_notifications send_notifications do
+          result = yield
+
+          if result.failure?
+            raise ActiveRecord::Rollback
+          end
+        end
+      end
+    end
+
+    result
   end
 end

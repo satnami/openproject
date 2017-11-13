@@ -113,7 +113,11 @@ class WorkPackages::SetScheduleService
   #    to all following work packages.
   def reschedule_by_follows(scheduled, dependency)
     # TODO: move into schedule dependency
-    delta = date_rescheduling_delta(dependency.follows_moved.first.to)
+    delta = if dependency.follows_moved.first
+              date_rescheduling_delta(dependency.follows_moved.first.to)
+            else
+              0
+            end
 
     unless delta.zero?
       required_delta = [dependency.max_date_of_followed - scheduled.start_date, [delta, 0].min].max

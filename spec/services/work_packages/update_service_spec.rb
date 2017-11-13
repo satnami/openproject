@@ -251,7 +251,7 @@ describe WorkPackages::UpdateService, type: :model do
         end
 
         let(:child_service) do
-          double('WorkPackages::SetProjectAndDependentAttributesService')
+          double('WorkPackages::SetAttributesService')
         end
 
         let(:child_service_success) do
@@ -262,7 +262,7 @@ describe WorkPackages::UpdateService, type: :model do
         end
 
         before do
-          expect(WorkPackages::SetProjectAndDependentAttributesService)
+          expect(WorkPackages::SetAttributesService)
             .to receive(:new)
             .with(user: user,
                   work_package: child_work_package,
@@ -271,7 +271,7 @@ describe WorkPackages::UpdateService, type: :model do
 
           expect(child_service)
             .to receive(:call)
-            .with(target_project)
+            .with(project_id: target_project.id)
             .and_return ServiceResult.new success: child_service_success, errors: child_service_errors
         end
 

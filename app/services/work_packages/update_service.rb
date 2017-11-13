@@ -106,8 +106,10 @@ class WorkPackages::UpdateService
 
   def update_descendants
     if work_package.project_id_changed?
+      attributes = { project: work_package.project }
+
       work_package.descendants.each do |descendant|
-        result = move_descendant(descendant, work_package.project)
+        result = set_attributes(attributes, descendant)
 
         if result.success?
           unit_of_work << descendant if descendant.changed?
@@ -123,14 +125,6 @@ class WorkPackages::UpdateService
       self.unit_of_work += modified
       self.errors += modified_errors
     end
-  end
-
-  def move_descendant(descendant, project)
-    WorkPackages::SetProjectAndDependentAttributesService
-      .new(user: user,
-           work_package: descendant,
-           contract: WorkPackages::UpdateContract)
-      .call(project)
   end
 
   def cleanup(attributes)

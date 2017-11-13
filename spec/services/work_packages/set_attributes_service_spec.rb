@@ -70,9 +70,6 @@ describe WorkPackages::SetAttributesService, type: :model do
   end
 
   describe 'call' do
-    before do
-    end
-
     shared_examples_for 'service call' do
       subject { instance.call(call_attributes) }
 
@@ -200,6 +197,172 @@ describe WorkPackages::SetAttributesService, type: :model do
           instance.call(type: target_type)
 
           expect(work_package.due_date).to eql date
+        end
+      end
+    end
+
+    context 'when switching the project' do
+      let(:new_project) { FactoryGirl.build_stubbed(:project) }
+      let(:version) { FactoryGirl.build_stubbed(:version) }
+      let(:category) { FactoryGirl.build_stubbed(:category) }
+      let(:new_category) { FactoryGirl.build_stubbed(:category, name: category.name) }
+      let(:new_statuses) { [work_package.status] }
+      let(:new_versions) { [] }
+      let(:type) { work_package.type }
+      let(:new_types) { [type] }
+      let(:default_type) { FactoryGirl.build_stubbed(:type_standard) }
+      let(:other_type) { FactoryGirl.build_stubbed(:type) }
+      let(:yet_another_type) { FactoryGirl.build_stubbed(:type) }
+
+      let(:call_attributes) { {} }
+      let(:new_project_categories) do
+        categories_stub = double('categories')
+        allow(new_project)
+          .to receive(:categories)
+          .and_return(categories_stub)
+
+        categories_stub
+      end
+
+      before do
+        allow(work_package)
+          .to receive(:new_statuses_allowed_to)
+          .with(user, true)
+          .and_return(new_statuses)
+        allow(new_project)
+          .to receive(:shared_versions)
+          .and_return(new_versions)
+        allow(new_project_categories)
+          .to receive(:find_by)
+          .with(name: category.name)
+          .and_return nil
+        allow(new_project)
+          .to receive(:types)
+          .and_return(new_types)
+      end
+
+      shared_examples_for 'updating the project' do
+        context 'fixed_version' do
+          before do
+            work_package.fixed_version = version
+          end
+
+          context 'not shared in new project' do
+            it 'sets to nil' do
+              subject
+
+              expect(work_package.fixed_version)
+                .to be_nil
+            end
+          end
+
+          context 'shared in the new project' do
+            let(:new_versions) { [version] }
+
+            it 'keeps the version' do
+              subject
+
+              expect(work_package.fixed_version)
+                .to eql version
+            end
+          end
+        end
+
+        context 'category' do
+          before do
+            work_package.category = category
+          end
+
+          context 'no category of same name in new project' do
+            it 'sets to nil' do
+              subject
+
+              expect(work_package.category)
+                .to be_nil
+            end
+          end
+
+          context 'category of same name in new project' do
+            before do
+              allow(new_project_categories)
+                .to receive(:find_by)
+                .with(name: category.name)
+                .and_return new_category
+            end
+
+            it 'uses the equally named category' do
+              subject
+
+              expect(work_package.category)
+                .to eql new_category
+            end
+          end
+        end
+
+        context 'type' do
+          context 'current type exists in new project' do
+            it 'leaves the type' do
+              subject
+
+              expect(work_package.type)
+                .to eql type
+            end
+          end
+
+          context 'a default type exists in new project' do
+            let(:new_types) { [other_type, default_type] }
+
+            it 'uses the default type' do
+              subject
+
+              expect(work_package.type)
+                .to eql default_type
+            end
+          end
+
+          context 'no default type exists in new project' do
+            let(:new_types) { [other_type, yet_another_type] }
+
+            it 'uses the first type' do
+              subject
+
+              expect(work_package.type)
+                .to eql other_type
+            end
+          end
+
+          context 'when also setting a new type via attributes' do
+            let(:attributes) { { project: new_project, type: yet_another_type } }
+
+            it 'sets the desired type' do
+              subject
+
+              expect(work_package.type)
+                .to eql yet_another_type
+            end
+          end
+        end
+      end
+
+      context 'update project before calling the service' do
+        let(:call_attributes) { {} }
+        let(:attributes) { { project: new_project } }
+
+        before do
+          work_package.attributes = attributes
+        end
+
+        it_behaves_like 'service call' do
+          it_behaves_like 'updating the project'
+        end
+      end
+
+      context 'updating project via attributes' do
+        let(:call_attributes) { attributes }
+        let(:attributes) { { project: new_project } }
+
+        it_behaves_like 'service call' do
+          it_behaves_like 'updating the project'
         end
       end
     end
