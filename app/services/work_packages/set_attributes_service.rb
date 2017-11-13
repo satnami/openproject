@@ -54,8 +54,8 @@ class WorkPackages::SetAttributesService
     boolean, errors = validate(work_package)
 
     ServiceResult.new(success: boolean,
-                      errors: errors,
-                      result: work_package)
+                      errors: boolean ? [] : [errors],
+                      result: [work_package])
   end
 
   def set_attributes(attributes)

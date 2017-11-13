@@ -53,7 +53,7 @@ class WorkPackages::CopyService
 
       copied = copy(attributes, send_notifications)
 
-      ancestors[wp.id] = copied.result.id
+      ancestors[wp.id] = copied.result.first.id
 
       result.merge!(copied)
     end

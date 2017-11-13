@@ -71,8 +71,8 @@ describe WorkPackages::UpdateService, type: :model do
 
       instance
     end
-    let(:errors) { double('errors', empty?: true) }
-    let(:set_service_results) { double('result', success?: true, errors: errors) }
+    let(:errors) { [] }
+    let(:set_service_results) { ServiceResult.new success: true, errors: errors, result: [work_package] }
     let(:work_package_save_result) { true }
 
     before do
@@ -108,12 +108,12 @@ describe WorkPackages::UpdateService, type: :model do
       end
 
       it 'has no errors' do
-        expect(subject.errors).to be_empty
+        expect(subject.errors.all?(&:empty?)).to be_truthy
       end
 
       context 'when setting the attributes is unsuccessful (invalid)' do
-        let(:errors) { double('errors', empty?: false) }
-        let(:set_service_results) { double('result', success?: false, errors: errors) }
+        let(:errors) { double('set errors', empty?: false) }
+        let(:set_service_results) { ServiceResult.new success: false, errors: errors, result: [] }
 
         it 'is unsuccessful' do
           expect(subject.success?).to be_falsey
@@ -242,6 +242,9 @@ describe WorkPackages::UpdateService, type: :model do
           allow(work_package)
             .to receive(:descendants)
             .and_return [child_work_package]
+          allow(child_work_package)
+            .to receive(:save)
+            .and_return(true)
 
           child_work_package
         end
@@ -258,7 +261,11 @@ describe WorkPackages::UpdateService, type: :model do
           true
         end
         let(:child_service_errors) do
-          double('child service errors', empty?: child_service_success)
+          if child_service_success
+            []
+          else
+            [double('child service errors', empty?: false)]
+          end
         end
 
         before do
@@ -271,8 +278,10 @@ describe WorkPackages::UpdateService, type: :model do
 
           expect(child_service)
             .to receive(:call)
-            .with(project_id: target_project.id)
-            .and_return ServiceResult.new success: child_service_success, errors: child_service_errors
+            .with(project: target_project)
+            .and_return ServiceResult.new success: child_service_success,
+                                          errors: child_service_errors,
+                                          result: child_work_package
         end
 
         context 'when the child service is successful' do
@@ -291,7 +300,7 @@ describe WorkPackages::UpdateService, type: :model do
             result = instance.call(attributes)
 
             expect(result).not_to be_success
-            expect(result.errors).to match_array [child_service_errors]
+            expect(result.errors).to match_array child_service_errors
           end
         end
       end

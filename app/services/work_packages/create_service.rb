@@ -29,6 +29,8 @@
 #++
 
 class WorkPackages::CreateService
+  include ::WorkPackages::Shared::UpdateAncestors
+
   attr_accessor :user, :work_package
 
   def initialize(user:)
@@ -37,28 +39,54 @@ class WorkPackages::CreateService
 
   def call(attributes: {}, send_notifications: true)
     as_user_and_sending(send_notifications) do
-      create(attributes)
+      create(attributes_with_defaults(attributes))
     end
   end
-
-  # TODO: update parent (inherit)
 
   protected
 
   def create(attributes)
     wp = WorkPackage.new
 
-    set_attributes = WorkPackages::SetAttributesService
-                     .new(user: user,
-                          work_package: wp,
-                          contract: WorkPackages::CreateContract)
-                     .call(attributes: attributes)
+    result = set_attributes(attributes, wp)
 
-    if set_attributes.success?
-      set_attributes.result.save
+    result.success &&= wp.save
+
+    if result.success?
+      result.merge!(reschedule_related(wp))
+      result.merge!(update_ancestors_all_attributes(result.result))
+    else
+      result.success = false
+      result.errors << wp.errors
     end
 
-    set_attributes
+    result
+  end
+
+  def attributes_with_defaults(attributes)
+    { author: user }.merge(attributes)
+  end
+
+  def set_attributes(attributes, wp)
+    WorkPackages::SetAttributesService
+      .new(user: user,
+           work_package: wp,
+           contract: WorkPackages::CreateContract)
+      .call(attributes)
+  end
+
+  def reschedule_related(work_package)
+    result = WorkPackages::SetScheduleService
+             .new(user: user,
+                  work_packages: [work_package])
+             .call
+
+    unless result.success? && result.result.all?(&:save)
+      result.sucess = false
+      result.errors = result.result.select(&:changed?).map(&:errors)
+    end
+
+    result
   end
 
   def as_user_and_sending(send_notifications)

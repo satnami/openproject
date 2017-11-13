@@ -47,25 +47,32 @@ class WorkPackages::DestroyService
   private
 
   def destroy
-    unit_of_work = [work_package]
-    errors = []
+    result = ServiceResult.new success: true,
+                               errors: [],
+                               result: [work_package]
 
     descendants = work_package.descendants.to_a
 
-    if work_package.destroy
-      errors << work_package.errors
+    result.success = work_package.destroy
 
-      ancestors_updated, ancestors_errors = update_ancestors_all_attributes(unit_of_work)
+    if result.success?
+      result.merge!(update_ancestors_all_attributes(result.result))
 
-      unit_of_work += ancestors_updated
-      errors += ancestors_errors
-
-      unit_of_work += descendants.each(&:destroy)
+      destroy_descendants(descendants, result)
+    else
+      result.errors << work_package.errors
     end
 
-    ServiceResult.new(success: work_package.destroyed?,
-                      errors: errors.reject(&:empty?),
-                      result: unit_of_work)
+    result
+  end
+
+  def destroy_descendants(descendants, result)
+    unless descendants.each(&:destroy)
+      result.errors += descendants.reject(&:destroyed?).map(&:errors)
+      result.success = false
+    end
+
+    result.result += descendants
   end
 
   # TODO: copied from update service

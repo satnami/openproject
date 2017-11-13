@@ -39,61 +39,46 @@ class WorkPackages::UpdateService
   end
 
   def call(attributes: {}, send_notifications: true)
-    reset
-
     as_user_and_sending(send_notifications) do
       update(attributes)
     end
   end
 
-  protected
-
-  attr_accessor :errors,
-                :unit_of_work
-
   private
-
-  def reset
-    self.errors = []
-    self.unit_of_work = []
-  end
 
   def update(attributes)
     result = set_attributes(attributes)
 
-    errors << result.errors
-
     if result.success?
-      unit_of_work << work_package
-
-      update_dependent attributes
-
-      unit_of_work.uniq!
+      result.merge!(update_dependent(attributes))
     end
 
-    if save_if_valid
-      update_ancestors
+    if save_if_valid(result)
+      result.merge!(update_ancestors([work_package]))
     end
 
-    ServiceResult.new(success: all_errors.empty?,
-                      errors: all_errors,
-                      result: unit_of_work)
+    result
   end
 
-  def save_if_valid
-    errors.all?(&:empty?) && unit_of_work.all?(&:save)
-  end
+  def save_if_valid(result)
+    unless result.success? && result.result.all?(&:save)
+      result.success = false
+      result.errors += result.result.reject { |r| r.errors.empty? }.map(&:errors)
+    end
 
-  def all_errors
-    (errors + unit_of_work.map(&:errors)).uniq.reject(&:empty?)
+    result.success?
   end
 
   def update_dependent(attributes)
-    update_descendants
+    result = ServiceResult.new(success: true, errors: [], result: [])
 
-    cleanup(attributes) if errors.all?(&:empty?)
+    result.merge!(update_descendants)
 
-    reschedule_related
+    cleanup(attributes) if result.success?
+
+    result.merge!(reschedule_related)
+
+    result
   end
 
   def set_attributes(attributes, wp = work_package)
@@ -105,26 +90,17 @@ class WorkPackages::UpdateService
   end
 
   def update_descendants
+    result = ServiceResult.new(success: true, errors: [], result: [])
+
     if work_package.project_id_changed?
       attributes = { project: work_package.project }
 
       work_package.descendants.each do |descendant|
-        result = set_attributes(attributes, descendant)
-
-        if result.success?
-          unit_of_work << descendant if descendant.changed?
-        else
-          errors << result.errors
-        end
+        result.merge!(set_attributes(attributes, descendant))
       end
     end
-  end
 
-  def update_ancestors
-    super([work_package]).tap do |modified, modified_errors|
-      self.unit_of_work += modified
-      self.errors += modified_errors
-    end
+    result
   end
 
   def cleanup(attributes)
@@ -159,13 +135,10 @@ class WorkPackages::UpdateService
   end
 
   def reschedule_related
-    result = WorkPackages::SetScheduleService
-             .new(user: user,
-                  work_packages: [work_package])
-             .call(work_package.changed.map(&:to_sym))
-
-    self.errors += result.errors
-    self.unit_of_work += result.result
+    WorkPackages::SetScheduleService
+      .new(user: user,
+           work_packages: [work_package])
+      .call(work_package.changed.map(&:to_sym))
   end
 
   def as_user_and_sending(send_notifications)

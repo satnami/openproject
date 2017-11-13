@@ -112,7 +112,7 @@ describe WorkPackages::SetAttributesService, type: :model do
         it "exposes the contract's errors" do
           subject
 
-          expect(subject.errors).to eql mock_contract_instance.errors
+          expect(subject.errors).to eql [mock_contract_instance.errors]
         end
       end
 
@@ -132,7 +132,7 @@ describe WorkPackages::SetAttributesService, type: :model do
         it "exposes the work_packages's errors" do
           subject
 
-          expect(subject.errors).to eql work_package.errors
+          expect(subject.errors).to eql [work_package.errors]
         end
       end
     end

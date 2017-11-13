@@ -53,20 +53,12 @@ module WorkPackages
       end
 
       def update_each_ancestor(work_packages, changes)
-        modified = []
-        modified_errors = []
+        work_packages.inject(ServiceResult.new(success: true, errors: [], result: [])) do |result, wp|
+          inherit_result = inherit_to_ancestors(wp, changes)
 
-        work_packages.each do |wp|
-          result = inherit_to_ancestors(wp, changes)
-
-          if result.success?
-            modified += result.result
-          else
-            modified_errors += result.errors
-          end
+          result.merge!(inherit_result)
+          result
         end
-
-        [modified, modified_errors]
       end
 
       def inherit_to_ancestors(wp, changes)
