@@ -175,6 +175,9 @@ describe WorkPackages::SetAttributesService, type: :model do
           .to receive(:new_statuses_allowed_to)
           .with(user, true)
           .and_return(new_statuses)
+        allow(Status)
+          .to receive(:default)
+          .and_return(default_status)
       end
 
       context 'no value set before for a new work package' do

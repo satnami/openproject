@@ -65,7 +65,7 @@ class WorkPackages::SetAttributesService
 
     unify_dates if work_package_now_milestone?
 
-    update_project_dependent_attributes if work_package.project_id_changed?
+    update_project_dependent_attributes if work_package.project_id_changed? && work_package.project_id
 
     # Take over any default custom values
     # for new custom fields
@@ -77,8 +77,7 @@ class WorkPackages::SetAttributesService
     # TODO: move available priorities to contract
     work_package.priority ||= IssuePriority.active.default
     work_package.author ||= user
-
-    reassign_status unless work_package.status
+    work_package.status ||= Status.default
   end
 
   def unify_dates

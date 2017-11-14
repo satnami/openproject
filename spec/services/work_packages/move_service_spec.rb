@@ -28,7 +28,7 @@
 
 require 'spec_helper'
 
-describe MoveWorkPackageService, type: :model do
+describe WorkPackages::MoveService, type: :model do
   let(:user) { FactoryGirl.build_stubbed(:user) }
   let(:work_package) do
     FactoryGirl.build_stubbed(:stubbed_work_package)
@@ -61,9 +61,9 @@ describe MoveWorkPackageService, type: :model do
         .and_return(child_service_result)
     end
 
-    it 'returns the work_package and calls the copy service' do
+    it 'calls the copy service and returns its result' do
       expect(instance.call(project, nil, copy: true))
-        .to eql work_package
+        .to eql child_service_result
     end
 
     context 'when providing a type and attributes' do
@@ -73,9 +73,9 @@ describe MoveWorkPackageService, type: :model do
           subject: 'blubs' }
       end
 
-      it 'returns the work_package and calls the update service' do
+      it 'calls the copy service and returns its result' do
         expect(instance.call(project, type, attributes: { subject: 'blubs' }, copy: true))
-          .to eql work_package
+          .to eql child_service_result
       end
     end
   end
@@ -98,9 +98,9 @@ describe MoveWorkPackageService, type: :model do
         .and_return(child_service_result)
     end
 
-    it 'returns the work_package and calls the update service' do
+    it 'calls the update service and returns its result' do
       expect(instance.call(project))
-        .to eql work_package
+        .to eql child_service_result
     end
 
     context 'when providing a type and attributes' do
@@ -110,9 +110,9 @@ describe MoveWorkPackageService, type: :model do
           subject: 'blubs' }
       end
 
-      it 'returns the work_package and calls the update service' do
+      it 'calls the update service and returns its result' do
         expect(instance.call(project, type, attributes: { subject: 'blubs' }))
-          .to eql work_package
+          .to eql child_service_result
       end
     end
   end

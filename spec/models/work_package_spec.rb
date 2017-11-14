@@ -68,15 +68,6 @@ describe WorkPackage, type: :model do
       end
 
       context 'project chosen' do
-        it 'has the first type of the project set if none is provided' do
-          project.types = [type, type2]
-          type.update_attribute :position, 2
-          type2.update_attribute :position, 1
-
-          expect(WorkPackage.new(project: project).type)
-            .to eql type2
-        end
-
         it 'has the provided type if one is provided' do
           expect(WorkPackage.new(project: project, type: type2).type)
             .to eql type2

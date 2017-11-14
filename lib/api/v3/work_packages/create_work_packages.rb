@@ -27,7 +27,7 @@
 #++
 
 require 'api/v3/work_packages/work_package_representer'
-require 'create_work_package_service'
+require 'work_packages/create_service'
 
 module API
   module V3
@@ -52,17 +52,19 @@ module API
 
         def represent_create_result(result, current_user)
           if result.success?
-            work_package = result.result
+            work_package = result.result.first
             WorkPackages::WorkPackageRepresenter.create(work_package.reload,
                                                         current_user: current_user,
                                                         embed_links: true)
           else
-            fail ::API::Errors::ErrorBase.create_and_merge_errors(result.errors)
+            errors = result.errors.first || []
+
+            fail ::API::Errors::ErrorBase.create_and_merge_errors(errors)
           end
         end
 
         def create_work_package(current_user, work_package, send_notification)
-          create_service = WorkPackages::CreateService.new(user: current_user)
+          create_service = ::WorkPackages::CreateService.new(user: current_user)
 
           create_service.call(work_package: work_package,
                               send_notifications: send_notification)
