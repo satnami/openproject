@@ -61,9 +61,11 @@ class WorkPackages::UpdateService
   end
 
   def save_if_valid(result)
-    unless result.success? && result.result.all?(&:save)
-      result.success = false
-      result.errors += result.result.reject { |r| r.errors.empty? }.map(&:errors)
+    if result.success?
+      unless result.result.all?(&:save)
+        result.success = false
+        result.errors += result.result.reject { |r| r.errors.empty? }.map(&:errors)
+      end
     end
 
     result.success?

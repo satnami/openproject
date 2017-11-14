@@ -61,6 +61,8 @@ class WorkPackages::SetAttributesService
   def set_attributes(attributes)
     work_package.attributes = attributes
 
+    set_default_attributes if work_package.new_record?
+
     unify_dates if work_package_now_milestone?
 
     update_project_dependent_attributes if work_package.project_id_changed?
@@ -68,6 +70,14 @@ class WorkPackages::SetAttributesService
     # Take over any default custom values
     # for new custom fields
     work_package.set_default_values! if custom_field_context_changed?
+  end
+
+  def set_default_attributes
+    #work_package.status ||= Status.default
+    # TODO: move available priorities to contract
+    work_package.priority ||= IssuePriority.active.default
+    work_package.author ||= user
+    # type and status are set as well later on (for persisted as well)
   end
 
   def unify_dates
@@ -107,9 +117,9 @@ class WorkPackages::SetAttributesService
   end
 
   def reassign_type
-    available_types = work_package.project.types
+    available_types = work_package.project.types.order(:position)
 
-    if available_types.include? work_package.type
+    if available_types.include?(work_package.type) && work_package.type
       return
     elsif available_types.any?(&:is_default)
       work_package.type = available_types.detect(&:is_default)

@@ -115,9 +115,6 @@ class WorkPackage < ActiveRecord::Base
     where(author_id: author.id)
   }
 
-  # TODO: put into create service
-  after_initialize :set_default_values
-
   acts_as_watchable
 
   after_save :remove_invalid_relations, if: -> { parent_id_changed? }
@@ -587,18 +584,6 @@ class WorkPackage < ActiveRecord::Base
   end
 
   private
-
-  def set_default_values
-    if new_record? # set default values for new records only
-      self.status ||= Status.default
-      self.priority ||= IssuePriority.active.default
-      set_default_type if project
-    end
-  end
-
-  def set_default_type
-    self.type ||= project.types.order(:position).first
-  end
 
   def add_time_entry_for(user, attributes)
     return if time_entry_blank?(attributes)

@@ -47,7 +47,10 @@ describe WorkPackages::CreateService, 'integration', type: :model do
     FactoryGirl.create(:type,
                        custom_fields: [custom_field])
   end
-  let(:project) { FactoryGirl.create(:project, types: [type]) }
+  let(:default_type) do
+    FactoryGirl.create(:type_standard)
+  end
+  let(:project) { FactoryGirl.create(:project, types: [type, default_type]) }
   let(:parent) do
     FactoryGirl.create(:work_package,
                        project: project,
@@ -55,8 +58,10 @@ describe WorkPackages::CreateService, 'integration', type: :model do
   end
   let(:instance) { described_class.new(user: user) }
   let(:custom_field) { FactoryGirl.create(:work_package_custom_field) }
-  let(:status) { FactoryGirl.create(:default_status) }
-  let(:priority) { FactoryGirl.create(:default_priority) }
+  let(:other_status) { FactoryGirl.create(:status) }
+  let(:default_status) { FactoryGirl.create(:default_status) }
+  let(:priority) { FactoryGirl.create(:priority) }
+  let(:default_priority) { FactoryGirl.create(:default_priority) }
   let(:attributes) { {} }
   let(:new_work_package) do
     service_result
@@ -69,16 +74,19 @@ describe WorkPackages::CreateService, 'integration', type: :model do
   end
 
   before do
+    other_status
+    default_status
+    priority
+    default_priority
+    type
+    default_type
     login_as(user)
   end
 
   describe '#call' do
     let(:attributes) do
       { subject: 'blubs',
-        type: type,
         project: project,
-        status: status,
-        priority: priority,
         done_ratio: 50,
         parent: parent,
         start_date: Date.today,
@@ -99,6 +107,18 @@ describe WorkPackages::CreateService, 'integration', type: :model do
       # service user as author
       expect(new_work_package.author)
         .to eql(user)
+
+      # assign the default status
+      expect(new_work_package.status)
+        .to eql(default_status)
+
+      # assign the default type
+      expect(new_work_package.type)
+        .to eql(default_type)
+
+      # assign the default priority
+      expect(new_work_package.priority)
+        .to eql(default_priority)
 
       # parent updated
       parent.reload

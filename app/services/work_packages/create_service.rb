@@ -37,34 +37,30 @@ class WorkPackages::CreateService
     self.user = user
   end
 
-  def call(attributes: {}, send_notifications: true)
+  def call(attributes: {},
+           work_package: WorkPackage.new,
+           send_notifications: true)
     as_user_and_sending(send_notifications) do
-      create(attributes_with_defaults(attributes))
+      create(attributes, work_package)
     end
   end
 
   protected
 
-  def create(attributes)
-    wp = WorkPackage.new
+  def create(attributes, work_package)
+    result = set_attributes(attributes, work_package)
 
-    result = set_attributes(attributes, wp)
-
-    result.success &&= wp.save
+    result.success &&= work_package.save
 
     if result.success?
-      result.merge!(reschedule_related(wp))
+      result.merge!(reschedule_related(work_package))
       result.merge!(update_ancestors_all_attributes(result.result))
     else
       result.success = false
-      result.errors << wp.errors
+      result.errors << work_package.errors
     end
 
     result
-  end
-
-  def attributes_with_defaults(attributes)
-    { author: user }.merge(attributes)
   end
 
   def set_attributes(attributes, wp)

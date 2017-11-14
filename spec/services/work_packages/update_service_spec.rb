@@ -113,7 +113,7 @@ describe WorkPackages::UpdateService, type: :model do
 
       context 'when setting the attributes is unsuccessful (invalid)' do
         let(:errors) { double('set errors', empty?: false) }
-        let(:set_service_results) { ServiceResult.new success: false, errors: errors, result: [] }
+        let(:set_service_results) { ServiceResult.new success: false, errors: [errors], result: [] }
 
         it 'is unsuccessful' do
           expect(subject.success?).to be_falsey
