@@ -49,12 +49,22 @@ describe WorkPackages::SetAttributesService, type: :model do
 
     wp
   end
+  let(:new_work_package) do
+    wp = WorkPackage.new
+
+    allow(wp)
+      .to receive(:valid?)
+      .and_return(work_package_valid)
+
+    wp
+  end
+  let(:contract_class) { WorkPackages::UpdateContract }
   let(:mock_contract) do
-    double(WorkPackages::UpdateContract,
+    double(contract_class,
            new: mock_contract_instance)
   end
   let(:mock_contract_instance) do
-    mock = mock_model(WorkPackages::UpdateContract)
+    mock = mock_model(contract_class)
     allow(mock)
       .to receive(:validate)
       .and_return contract_valid
@@ -155,6 +165,199 @@ describe WorkPackages::SetAttributesService, type: :model do
       it_behaves_like 'service call'
     end
 
+    context 'status' do
+      let(:default_status) { FactoryGirl.build_stubbed(:default_status) }
+      let(:other_status) { FactoryGirl.build_stubbed(:status) }
+      let(:new_statuses) { [other_status, default_status] }
+
+      before do
+        allow(work_package)
+          .to receive(:new_statuses_allowed_to)
+          .with(user, true)
+          .and_return(new_statuses)
+      end
+
+      context 'no value set before for a new work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+        let(:work_package) { new_work_package }
+
+        before do
+          work_package.status = nil
+        end
+
+        it_behaves_like 'service call' do
+          it 'sets the default status' do
+            subject
+
+            expect(work_package.status)
+              .to eql default_status
+          end
+        end
+      end
+
+      context 'no value set on existing work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+
+        before do
+          work_package.status = nil
+        end
+
+        it_behaves_like 'service call' do
+          it 'stays nil' do
+            subject
+
+            expect(work_package.status)
+              .to be_nil
+          end
+        end
+      end
+
+      context 'update status before calling the service' do
+        let(:call_attributes) { {} }
+        let(:attributes) { { status: other_status } }
+
+        before do
+          work_package.attributes = attributes
+        end
+
+        it_behaves_like 'service call'
+      end
+
+      context 'updating status via attributes' do
+        let(:call_attributes) { attributes }
+        let(:attributes) { { status: other_status } }
+
+        it_behaves_like 'service call'
+      end
+    end
+
+    context 'author' do
+      let(:other_user) { FactoryGirl.build_stubbed(:user) }
+
+      context 'no value set before for a new work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+        let(:work_package) { new_work_package }
+
+        before do
+          work_package.author = nil
+        end
+
+        it_behaves_like 'service call' do
+          it "sets the service's author" do
+            subject
+
+            expect(work_package.author)
+              .to eql user
+          end
+        end
+      end
+
+      context 'no value set on existing work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+
+        before do
+          work_package.author = nil
+        end
+
+        it_behaves_like 'service call' do
+          it 'stays nil' do
+            subject
+
+            expect(work_package.author)
+              .to be_nil
+          end
+        end
+      end
+
+      context 'update author before calling the service' do
+        let(:call_attributes) { {} }
+        let(:attributes) { { author: other_user } }
+
+        before do
+          work_package.attributes = attributes
+        end
+
+        it_behaves_like 'service call'
+      end
+
+      context 'updating author via attributes' do
+        let(:call_attributes) { attributes }
+        let(:attributes) { { author: other_user } }
+
+        it_behaves_like 'service call'
+      end
+    end
+
+    context 'priority' do
+      let(:default_priority) { FactoryGirl.build_stubbed(:priority) }
+      let(:other_priority) { FactoryGirl.build_stubbed(:priority) }
+
+      before do
+        allow(IssuePriority)
+          .to receive_message_chain(:active, :default)
+          .and_return(default_priority)
+      end
+
+      context 'no value set before for a new work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+        let(:work_package) { new_work_package }
+
+        before do
+          work_package.priority = nil
+        end
+
+        it_behaves_like 'service call' do
+          it "sets the default priority" do
+            subject
+
+            expect(work_package.priority)
+              .to eql default_priority
+          end
+        end
+      end
+
+      context 'no value set on existing work package' do
+        let(:call_attributes) { {} }
+        let(:attributes) { {} }
+
+        before do
+          work_package.priority = nil
+        end
+
+        it_behaves_like 'service call' do
+          it 'stays nil' do
+            subject
+
+            expect(work_package.priority)
+              .to be_nil
+          end
+        end
+      end
+
+      context 'update priority before calling the service' do
+        let(:call_attributes) { {} }
+        let(:attributes) { { priority: other_priority } }
+
+        before do
+          work_package.attributes = attributes
+        end
+
+        it_behaves_like 'service call'
+      end
+
+      context 'updating priority via attributes' do
+        let(:call_attributes) { attributes }
+        let(:attributes) { { priority: other_priority } }
+
+        it_behaves_like 'service call'
+      end
+    end
+
     context 'when switching the type' do
       let(:target_type) { FactoryGirl.build_stubbed(:type) }
 
@@ -238,6 +441,10 @@ describe WorkPackages::SetAttributesService, type: :model do
           .and_return nil
         allow(new_project)
           .to receive(:types)
+          .and_return(new_types)
+        allow(new_types)
+          .to receive(:order)
+          .with(:position)
           .and_return(new_types)
       end
 

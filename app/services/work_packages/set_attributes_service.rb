@@ -77,7 +77,8 @@ class WorkPackages::SetAttributesService
     # TODO: move available priorities to contract
     work_package.priority ||= IssuePriority.active.default
     work_package.author ||= user
-    # type and status are set as well later on (for persisted as well)
+
+    reassign_status unless work_package.status
   end
 
   def unify_dates
