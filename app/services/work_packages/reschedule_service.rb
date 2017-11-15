@@ -67,7 +67,7 @@ class WorkPackages::RescheduleService
     results = set_attributes(date).compact
 
     if results.all?(&:success?)
-      unit_of_work += results.map(&:result)
+      unit_of_work += results.map(&:result).flatten
 
       reschedule_related(unit_of_work).tap do |reschedule_results|
         errors += reschedule_results.errors

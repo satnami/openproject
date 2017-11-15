@@ -232,6 +232,7 @@ describe MailHandler, type: :model do
         assert !issue.project.is_public?
         assert issue.root?
         assert issue.leaf?
+        assert !User.anonymous.admin?
       end
     end
   end
