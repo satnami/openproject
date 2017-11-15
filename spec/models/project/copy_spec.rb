@@ -127,6 +127,11 @@ describe Project::Copy, type: :model do
       let(:work_package2) { FactoryGirl.create(:work_package, project: project) }
       let(:work_package3) { FactoryGirl.create(:work_package, project: project) }
       let(:version) { FactoryGirl.create(:version, project: project) }
+      let(:user) { FactoryGirl.create(:admin) }
+
+      before do
+        login_as(user)
+      end
 
       describe '#attachments' do
         let!(:attachment) { FactoryGirl.create(:attachment, container: work_package) }

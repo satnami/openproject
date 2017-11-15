@@ -217,7 +217,7 @@ describe WorkPackages::CopyService, 'integration', type: :model do
         let!(:child) do
           FactoryGirl.create(:work_package, parent: work_package, project: source_project)
         end
-        let!(:grandchild) do
+        let(:grandchild) do
           FactoryGirl.create(:work_package, parent: child, project: source_project)
         end
 
@@ -238,7 +238,7 @@ describe WorkPackages::CopyService, 'integration', type: :model do
 
           describe 'grandchild' do
             before do
-              copy
+              grandchild
             end
 
             it { expect(grandchild.reload.project).to eql(source_project) }
@@ -265,11 +265,11 @@ describe WorkPackages::CopyService, 'integration', type: :model do
 
           describe 'grandchild' do
             before do
-              copy
+              grandchild
             end
 
             it { expect(grandchild.reload.project).to eql(source_project) }
-            it { expect(copy.descendants.leaves.map(&:project).uniq).to match_array [target_project] }
+            it { expect(copy.descendants).to be_empty }
           end
         end
       end

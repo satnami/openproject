@@ -175,32 +175,6 @@ class WorkPackage < ActiveRecord::Base
     (usr || User.current).allowed_to?(:view_work_packages, project)
   end
 
-  def copy_from(arg, options = {})
-    merged_options = { exclude: ['id',
-                                 'type', # type_id is in options, type is for STI.
-                                 'created_at',
-                                 'updated_at'] + (options[:exclude] || []).map(&:to_s) }
-
-    work_package = arg.is_a?(WorkPackage) ? arg : WorkPackage.visible.find(arg)
-
-    # attributes don't come from form, so it's safe to force assign
-    self.attributes = work_package.attributes.dup.except(*merged_options[:exclude])
-    self.parent = work_package.parent if work_package.parent
-    self.custom_field_values = work_package
-                               .custom_values
-                               .map { |cv| [cv.custom_field_id, cv.value] }
-                               .to_h
-    self.status = work_package.status
-
-    work_package.watchers.each do |watcher|
-      # This might be a problem once this method is used on existing work packages
-      # then, the watchers are added, keeping preexisting watchers
-      add_watcher(watcher.user) if watcher.user.active?
-    end
-
-    self
-  end
-
   # ACTS AS JOURNALIZED
   def activity_type
     'work_packages'

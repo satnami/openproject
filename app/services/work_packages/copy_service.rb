@@ -38,42 +38,44 @@ class WorkPackages::CopyService
 
   def call(attributes: {}, send_notifications: true)
     as_user_and_sending do
-      copy_all(attributes, send_notifications)
+      copy(attributes, send_notifications)
     end
   end
 
   protected
 
-  def copy_all(attribute_override, send_notifications)
-    result = ServiceResult.new success: true, errors: [], result: []
-    ancestors = {}
+  def copy(attribute_override, send_notifications)
+    attributes = copied_attributes(work_package, attribute_override)
 
-    work_package.self_and_descendants.each do |wp|
-      attributes = copied_attributes(wp, attribute_override, ancestors)
+    copied = create(attributes, send_notifications)
 
-      copied = copy(attributes, send_notifications)
-
-      ancestors[wp.id] = copied.result.first.id
-
-      result.merge!(copied)
+    if copied.success?
+      copy_watchers(copied.result.first)
     end
 
-    result
+    copied
   end
 
-  def copy(attributes, send_notifications)
+  def create(attributes, send_notifications)
     WorkPackages::CreateService
       .new(user: user)
-      .call(attributes: attributes, send_notifications: send_notifications)
+      .call(attributes: attributes,
+            send_notifications: send_notifications)
   end
 
-  def copied_attributes(wp, override, ancestors)
+  def copied_attributes(wp, override)
     wp
       .attributes
       .except('id', 'updated_at', 'created_at')
       .merge('author_id' => user.id,
-             'parent_id' => ancestors[wp.parent_id] || wp.parent_id)
+             'parent_id' => wp.parent_id)
       .merge(override)
+  end
+
+  def copy_watchers(copied)
+    work_package.watchers.each do |watcher|
+      copied.add_watcher(watcher.user) if watcher.user.active?
+    end
   end
 
   def as_user_and_sending
