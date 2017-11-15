@@ -41,8 +41,8 @@ describe 'IssueNestedSet', type: :model do
   end
 
   it 'moving to a descendant should not validate' do
-    parent1 = create_issue!
-    child =   create_issue!(parent: parent1)
+    parent = create_issue!
+    child = create_issue!(parent: parent)
     grandchild = create_issue!(parent: child)
 
     child.reload
@@ -74,10 +74,11 @@ describe 'IssueNestedSet', type: :model do
 
   # Helper that creates an issue with default attributes
   def create_issue!(attributes = {})
-    (i = WorkPackage.new.tap do |wp|
-      attr = { project_id: 1, type_id: 1, author_id: 1, subject: 'test' }.merge(attributes)
-      wp.attributes = attr
-    end).save!
-    i
+    WorkPackage.create!({ project_id: 1,
+                          type_id: 1,
+                          author_id: 1,
+                          subject: 'test',
+                          priority_id: 5,
+                          status_id: 1 }.merge(attributes))
   end
 end

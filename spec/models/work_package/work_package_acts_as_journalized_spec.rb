@@ -58,6 +58,21 @@ describe WorkPackage, type: :model do
       it 'has a journal entry' do
         expect(Journal.first.journable).to eq(work_package)
       end
+
+      it 'notes the changes to subject' do
+        expect(Journal.first.details[:subject])
+          .to match_array [nil, work_package.subject]
+      end
+
+      it 'notes the changes to project' do
+        expect(Journal.first.details[:project_id])
+          .to match_array [nil, work_package.project_id]
+      end
+
+      it 'notes the description to project' do
+        expect(Journal.first.details[:description])
+          .to match_array [nil, work_package.description]
+      end
     end
 
     context 'nothing is changed' do

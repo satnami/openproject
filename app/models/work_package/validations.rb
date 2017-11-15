@@ -58,6 +58,7 @@ module WorkPackage::Validations
 
     validate :validate_parent_exists
     validate :validate_parent_in_same_project
+    validate :validate_parent_not_subtask
 
     validate :validate_status_transition
 
@@ -144,6 +145,15 @@ module WorkPackage::Validations
        !parent.is_a?(WorkPackage::InexistentWorkPackage)
 
       errors.add :parent, :cannot_be_in_another_project
+    end
+  end
+
+  # have to validate ourself as the parent relation is created after saving
+  def validate_parent_not_subtask
+    if parent &&
+       descendants.include?(parent)
+
+      errors.add :parent, :cant_link_a_work_package_with_a_descendant
     end
   end
 
