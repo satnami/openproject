@@ -42,13 +42,11 @@ module WorkPackages
     attribute :type_id
     attribute :priority_id
     attribute :category_id
-    attribute :fixed_version_id
     attribute :fixed_version_id do
       validate_fixed_version_is_assignable
-      validate_fixed_version_is_still_open
     end
 
-    validate :validate_fixed_version_is_assignable
+    validate :validate_no_reopen_on_closed_version
 
     attribute :lock_version
     attribute :project_id
@@ -126,12 +124,9 @@ module WorkPackages
       errors.add :base, :error_unauthorized unless @can.allowed?(model, :manage_subtasks)
     end
 
-    def validate_fixed_version_is_still_open
-      # TODO: duplicates validate_fixed_version_is_assignable
-      if model.fixed_version && model.assignable_versions.include?(model.fixed_version)
-        if model.reopened? && model.fixed_version.closed?
-          errors.add :base, I18n.t(:error_can_not_reopen_work_package_on_closed_version)
-        end
+    def validate_no_reopen_on_closed_version
+      if model.fixed_version_id && model.reopened? && model.fixed_version.closed?
+        errors.add :base, I18n.t(:error_can_not_reopen_work_package_on_closed_version)
       end
     end
 

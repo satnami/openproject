@@ -285,167 +285,43 @@ describe WorkPackage, type: :model do
   end
 
   describe '#assignable_versions' do
-    let(:work_package) {
-      FactoryGirl.build(:work_package,
-                        project: project,
-                        fixed_version: version)
-    }
-    let(:version_open) {
-      FactoryGirl.create(:version,
-                         status: 'open',
-                         project: project)
-    }
-    let(:version_locked) {
-      FactoryGirl.create(:version,
-                         status: 'locked',
-                         project: project)
-    }
-    let(:version_closed) {
+    let!(:work_package) do
+      wp = FactoryGirl.create(:work_package,
+                              project: project,
+                              fixed_version: version_current)
+      # remove changes to fixed version factored into
+      # assignable_versions calculation
+      wp.reload
+      wp
+    end
+    let!(:version_current) do
       FactoryGirl.create(:version,
                          status: 'closed',
                          project: project)
-    }
-
-    describe '#assignment' do
-      context 'open version' do
-        let(:version) { version_open }
-
-        subject { work_package.assignable_versions.map(&:status).uniq }
-
-        it { is_expected.to include('open') }
-      end
-
-      shared_examples_for 'invalid version' do
-        before { work_package.save }
-
-        subject { work_package.errors[:fixed_version_id] }
-
-        it { is_expected.not_to be_empty }
-      end
-
-      context 'closed version' do
-        let(:version) { version_closed }
-
-        it_behaves_like 'invalid version'
-      end
-
-      context 'locked version' do
-        let(:version) { version_locked }
-
-        it_behaves_like 'invalid version'
-      end
-
-      context 'open version' do
-        let(:version) { version_open }
-
-        before { work_package.save }
-
-        it { is_expected.to be_truthy }
-      end
+    end
+    let!(:version_open) do
+      FactoryGirl.create(:version,
+                         status: 'open',
+                         project: project)
+    end
+    let!(:version_locked) do
+      FactoryGirl.create(:version,
+                         status: 'locked',
+                         project: project)
+    end
+    let!(:version_closed) do
+      FactoryGirl.create(:version,
+                         status: 'closed',
+                         project: project)
+    end
+    let!(:version_other_project) do
+      FactoryGirl.create(:version,
+                         status: 'open')
     end
 
-    describe 'work package update' do
-      let(:status_closed) {
-        FactoryGirl.create(:status,
-                           is_closed: true)
-      }
-      let(:status_open) {
-        FactoryGirl.create(:status,
-                           is_closed: false)
-      }
-
-      context 'closed version' do
-        let(:version) {
-          FactoryGirl.create(:version,
-                             status: 'open',
-                             project: project)
-        }
-
-        before do
-          version_open
-
-          work_package.status = status_closed
-          work_package.save!
-        end
-
-        shared_context 'in closed version' do
-          before do
-            version.status = 'closed'
-            version.save!
-          end
-        end
-
-        context 'attribute update' do
-          include_context 'in closed version'
-
-          before { work_package.subject = 'Subject changed' }
-
-          subject { work_package.save }
-
-          it { is_expected.to be_truthy }
-        end
-
-        context 'status changed' do
-          let!(:workflow) {
-            FactoryGirl.create(:workflow,
-                               old_status: status_closed,
-                               new_status: status_open,
-                               type_id: work_package.type_id)
-          }
-          let(:user) { FactoryGirl.create(:user) }
-          let!(:membership) {
-            FactoryGirl.create(:member,
-                               user: user,
-                               project: work_package.project,
-                               roles: [workflow.role])
-          }
-
-          before { login_as(user) }
-
-          shared_context 'in locked version' do
-            before do
-              version.status = 'locked'
-              version.save!
-            end
-          end
-
-          shared_examples_for 'save with open version' do
-            before do
-              work_package.status = status_open
-              work_package.fixed_version = version_open
-            end
-
-            subject { work_package.save }
-
-            it { is_expected.to be_truthy }
-          end
-
-          context 'in closed version' do
-            include_context 'in closed version'
-
-            before do
-              work_package.status = status_open
-              work_package.save
-            end
-
-            subject { work_package.errors[:base] }
-
-            it { is_expected.not_to be_empty }
-          end
-
-          context 'from closed version' do
-            include_context 'in closed version'
-
-            it_behaves_like 'save with open version'
-          end
-
-          context 'from locked version' do
-            include_context 'in locked version'
-
-            it_behaves_like 'save with open version'
-          end
-        end
-      end
+    it 'returns all open versions of the project' do
+      expect(work_package.assignable_versions)
+        .to match_array [version_current, version_open]
     end
   end
 

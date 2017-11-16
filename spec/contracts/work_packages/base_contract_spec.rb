@@ -35,6 +35,10 @@ describe WorkPackages::BaseContract do
                        estimated_hours: 6.0,
                        project: project)
   end
+  let(:stubbed_type) { FactoryGirl.build_stubbed(:type) }
+  let(:stubbed_work_package) do
+    FactoryGirl.build_stubbed(:stubbed_work_package, type: stubbed_type)
+  end
   let(:member) { FactoryGirl.create(:user, member_in_project: project, member_through_role: role) }
   let(:project) { FactoryGirl.create(:project) }
   let(:current_user) { member }
@@ -175,6 +179,71 @@ describe WorkPackages::BaseContract do
       end
 
       it_behaves_like 'invalid if changed', :done_ratio
+    end
+  end
+
+  describe 'fixed_version' do
+    subject(:contract) { described_class.new(stubbed_work_package, current_user) }
+
+    let(:assignable_version) { FactoryGirl.build_stubbed(:version) }
+    let(:invalid_version) { FactoryGirl.build_stubbed(:version) }
+
+    before do
+      allow(stubbed_work_package)
+        .to receive(:assignable_versions)
+        .and_return [assignable_version]
+    end
+
+    context 'for assignable version' do
+      before do
+        stubbed_work_package.fixed_version = assignable_version
+        subject.validate
+      end
+
+      it 'is valid' do
+        expect(subject.errors).to be_empty
+      end
+    end
+
+    context 'for non assignable version' do
+      before do
+        stubbed_work_package.fixed_version = invalid_version
+        subject.validate
+      end
+
+      it 'is invalid' do
+        expect(subject.errors.symbols_for(:fixed_version_id)).to eql [:inclusion]
+      end
+    end
+
+    context 'for a closed version' do
+      let(:assignable_version) { FactoryGirl.build_stubbed(:version, status: 'closed') }
+
+      context 'when reopening a work package' do
+        before do
+          allow(stubbed_work_package)
+            .to receive(:reopened?)
+            .and_return(true)
+
+          stubbed_work_package.fixed_version = assignable_version
+          subject.validate
+        end
+
+        it 'is invalid' do
+          expect(subject.errors[:base]).to eql [I18n.t(:error_can_not_reopen_work_package_on_closed_version)]
+        end
+      end
+
+      context 'when not reopening the work package' do
+        before do
+          stubbed_work_package.fixed_version = assignable_version
+          subject.validate
+        end
+
+        it 'is valid' do
+          expect(subject.errors).to be_empty
+        end
+      end
     end
   end
 end
