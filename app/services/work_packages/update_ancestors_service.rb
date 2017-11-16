@@ -69,7 +69,7 @@ class WorkPackages::UpdateAncestorsService
   end
 
   def inherit_attributes(ancestor, attributes)
-    return unless (%i(estimated_hours done_ratio parent parent_id) & attributes).any?
+    return unless attributes_justify_inheritance?(attributes)
 
     leaves = ancestor.leaves.select(:done_ratio, :estimated_hours, :status_id).includes(:status).to_a
 
@@ -158,5 +158,9 @@ class WorkPackages::UpdateAncestorsService
     previous_parent_changes = (previous[:parent_id] || previous[:parent])
 
     previous_parent_changes ? previous_parent_changes.first : nil
+  end
+
+  def attributes_justify_inheritance?(attributes)
+    (%i(estimated_hours done_ratio parent parent_id status status_id) & attributes).any?
   end
 end
