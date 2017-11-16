@@ -31,10 +31,13 @@
 class WorkPackages::CreateService
   include ::WorkPackages::Shared::UpdateAncestors
 
-  attr_accessor :user, :work_package
+  attr_accessor :user,
+                :work_package,
+                :contract
 
-  def initialize(user:)
+  def initialize(user:, contract: WorkPackages::CreateContract)
     self.user = user
+    self.contract = contract
   end
 
   def call(attributes: {},
@@ -67,7 +70,7 @@ class WorkPackages::CreateService
     WorkPackages::SetAttributesService
       .new(user: user,
            work_package: wp,
-           contract: WorkPackages::CreateContract)
+           contract: contract)
       .call(attributes)
   end
 
@@ -85,6 +88,7 @@ class WorkPackages::CreateService
     result
   end
 
+  # TODO: copied
   def as_user_and_sending(send_notifications)
     result = nil
 

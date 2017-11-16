@@ -161,9 +161,7 @@ class MailHandler < ActionMailer::Base
   def receive_work_package
     project = target_project
 
-    result = with_ensured_permission_if_no_permission_check do
-      create_work_package(project)
-    end
+    result = create_work_package(project)
 
     if result.is_a?(WorkPackage)
       log "work_package ##{result.id} created by #{user}"
@@ -182,9 +180,7 @@ class MailHandler < ActionMailer::Base
     # ignore CLI-supplied defaults for new work_packages
     @@handler_options[:issue].clear
 
-    result = with_ensured_permission_if_no_permission_check do
-      update_work_package(work_package)
-    end
+    result = update_work_package(work_package)
 
     if result.is_a?(WorkPackage)
       log "work_package ##{result.id} updated by #{user}"
@@ -451,7 +447,8 @@ class MailHandler < ActionMailer::Base
     attributes = collect_wp_attributes_from_email_on_create(work_package)
 
     service_call = WorkPackages::CreateService
-                   .new(user: user)
+                   .new(user: user,
+                        contract: work_package_create_contract_class)
                    .call(attributes: attributes, work_package: work_package)
 
     if service_call.success?
@@ -477,7 +474,9 @@ class MailHandler < ActionMailer::Base
     attributes = collect_wp_attributes_from_email_on_update(work_package)
 
     service_call = WorkPackages::UpdateService
-                   .new(user: user, work_package: work_package)
+                   .new(user: user,
+                        work_package: work_package,
+                        contract: work_package_update_contract_class)
                    .call(attributes: attributes)
 
     if service_call.success?
@@ -503,17 +502,27 @@ class MailHandler < ActionMailer::Base
     logger.send(level, message) if logger && logger.send(level)
   end
 
-  def with_ensured_permission_if_no_permission_check
-    admin = user.admin?
-
-    if altered = @@handler_options[:no_permission_check]
-      user.update_attribute(:admin, true)
+  def work_package_create_contract_class
+    if @@handler_options[:no_permission_check]
+      CreateWorkPackageWithoutAuthorizationsContract
+    else
+      WorkPackages::CreateContract
     end
+  end
 
-    result = yield
-  ensure
-    user.update_attribute(:admin, admin) if altered
+  def work_package_update_contract_class
+    if @@handler_options[:no_permission_check]
+      UpdateWorkPackageWithoutAuthorizationsContract
+    else
+      WorkPackages::UpdateContract
+    end
+  end
 
-    result
+  class UpdateWorkPackageWithoutAuthorizationsContract < WorkPackages::UpdateContract
+    include WorkPackages::SkipAuthorizationChecks
+  end
+
+  class CreateWorkPackageWithoutAuthorizationsContract < WorkPackages::CreateContract
+    include WorkPackages::SkipAuthorizationChecks
   end
 end

@@ -152,16 +152,21 @@ module Project::Copy
         parent_id = (work_packages_map[issue.parent_id] && work_packages_map[issue.parent_id].id) || issue.parent_id
 
         overrides = { project: self,
-                      parent_id: parent_id }
+                      parent_id: parent_id,
+                      fixed_version: issue.fixed_version && versions.detect { |v| v.name == issue.fixed_version.name } }
 
         service_call = WorkPackages::CopyService
-                       .new(user: User.current, work_package: issue)
+                       .new(user: User.current,
+                            work_package: issue,
+                            contract: WorkPackages::CopyProjectContract)
                        .call(attributes: overrides)
 
         if service_call.success?
-          service_call
-          work_packages_map[issue.id] = service_call.result.first
+          new_work_package = service_call.result.first
+
+          work_packages_map[issue.id] = new_work_package
         elsif logger && logger.info
+          compiled_errors << service_call.errors.first
           logger.info <<-MSG
             Project#copy_work_packages: work package ##{issue.id} could not be copied: #{service_call.errors.first.full_messages}
           MSG

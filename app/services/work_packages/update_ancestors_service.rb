@@ -30,8 +30,7 @@
 
 class WorkPackages::UpdateAncestorsService
   attr_accessor :user,
-                :work_package,
-                :contract
+                :work_package
 
   def initialize(user:, work_package:)
     self.user = user

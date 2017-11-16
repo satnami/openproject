@@ -29,11 +29,14 @@
 #++
 
 class WorkPackages::CopyService
-  attr_accessor :user, :work_package
+  attr_accessor :user,
+                :work_package,
+                :contract
 
-  def initialize(user:, work_package:)
+  def initialize(user:, work_package:, contract: WorkPackages::CreateContract)
     self.user = user
     self.work_package = work_package
+    self.contract = contract
   end
 
   def call(attributes: {}, send_notifications: true)
@@ -58,7 +61,8 @@ class WorkPackages::CopyService
 
   def create(attributes, send_notifications)
     WorkPackages::CreateService
-      .new(user: user)
+      .new(user: user,
+           contract: contract)
       .call(attributes: attributes,
             send_notifications: send_notifications)
   end
@@ -78,6 +82,7 @@ class WorkPackages::CopyService
     end
   end
 
+  # TODO: copied
   def as_user_and_sending
     result = nil
 

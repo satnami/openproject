@@ -37,14 +37,16 @@ describe WorkPackages::MoveService, type: :model do
   let(:project) { FactoryGirl.build_stubbed(:project) }
 
   let(:instance) { described_class.new(work_package, user) }
+  let(:child_service_result_work_package) { work_package }
   let(:child_service_result) do
     ServiceResult.new success: true,
-                      result: [work_package],
+                      result: [child_service_result_work_package],
                       errors: []
   end
 
   context 'when copying' do
     let(:expected_attributes) { { project: project } }
+    let(:child_service_result_work_package) { FactoryGirl.build_stubbed(:stubbed_work_package) }
 
     before do
       copy_double = double('copy service double')
@@ -59,11 +61,15 @@ describe WorkPackages::MoveService, type: :model do
         .to receive(:call)
         .with(attributes: expected_attributes)
         .and_return(child_service_result)
+
+      allow(work_package)
+        .to receive_message_chain(:self_and_descendants, :order_by_ancestors)
+        .and_return [work_package]
     end
 
-    it 'calls the copy service and returns its result' do
-      expect(instance.call(project, nil, copy: true))
-        .to eql child_service_result
+    it 'calls the copy service and merges its result' do
+      expect(instance.call(project, nil, copy: true).result)
+        .to match_array child_service_result.result
     end
 
     context 'when providing a type and attributes' do
@@ -73,9 +79,49 @@ describe WorkPackages::MoveService, type: :model do
           subject: 'blubs' }
       end
 
-      it 'calls the copy service and returns its result' do
-        expect(instance.call(project, type, attributes: { subject: 'blubs' }, copy: true))
-          .to eql child_service_result
+      it 'calls the copy service and merges its result' do
+        expect(instance.call(project, type, attributes: { subject: 'blubs' }, copy: true).result)
+          .to match_array child_service_result.result
+      end
+    end
+
+    context 'for a parent' do
+      let(:child_work_package) do
+        FactoryGirl.build_stubbed(:stubbed_work_package, parent: work_package)
+      end
+      let(:copied_child_work_package) do
+        FactoryGirl.build_stubbed(:stubbed_work_package)
+      end
+      let(:child_child_service_result) do
+        ServiceResult.new success: true,
+                          result: [copied_child_work_package],
+                          errors: []
+      end
+
+      let(:expected_child_attributes) { { project: project, parent_id: child_service_result_work_package.id } }
+
+      before do
+        copy_double = double('copy child service double')
+
+        expect(WorkPackages::CopyService)
+          .to receive(:new)
+          .with(user: user,
+                work_package: child_work_package)
+          .and_return(copy_double)
+
+        expect(copy_double)
+          .to receive(:call)
+          .with(attributes: expected_child_attributes)
+          .and_return(child_child_service_result)
+
+        allow(work_package)
+          .to receive_message_chain(:self_and_descendants, :order_by_ancestors)
+          .and_return [work_package, child_work_package]
+      end
+
+      it 'calls the copy service twice and merges its result' do
+        expect(instance.call(project, nil, copy: true).result)
+          .to match_array child_service_result.result + child_child_service_result.result
       end
     end
   end

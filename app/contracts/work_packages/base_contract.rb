@@ -43,6 +43,13 @@ module WorkPackages
     attribute :priority_id
     attribute :category_id
     attribute :fixed_version_id
+    attribute :fixed_version_id do
+      validate_fixed_version_is_assignable
+      validate_fixed_version_is_still_open
+    end
+
+    validate :validate_fixed_version_is_assignable
+
     attribute :lock_version
     attribute :project_id
 
@@ -57,9 +64,7 @@ module WorkPackages
               }
 
     attribute :parent_id do
-      if model.changed.include? 'parent_id'
-        errors.add :base, :error_unauthorized unless @can.allowed?(model, :manage_subtasks)
-      end
+      validate_user_allowed_to_set_parent if model.changed.include?('parent_id')
     end
 
     attribute :assigned_to_id do
@@ -110,6 +115,25 @@ module WorkPackages
 
     attr_reader :user,
                 :can
+
+    def validate_fixed_version_is_assignable
+      if model.fixed_version_id && !model.assignable_versions.map(&:id).include?(model.fixed_version_id)
+        errors.add :fixed_version_id, :inclusion
+      end
+    end
+
+    def validate_user_allowed_to_set_parent
+      errors.add :base, :error_unauthorized unless @can.allowed?(model, :manage_subtasks)
+    end
+
+    def validate_fixed_version_is_still_open
+      # TODO: duplicates validate_fixed_version_is_assignable
+      if model.fixed_version && model.assignable_versions.include?(model.fixed_version)
+        if model.reopened? && model.fixed_version.closed?
+          errors.add :base, I18n.t(:error_can_not_reopen_work_package_on_closed_version)
+        end
+      end
+    end
 
     def validate_people_visible(attribute, id_attribute, list)
       id = model[id_attribute]

@@ -32,8 +32,7 @@ module WorkPackage::Validations
   extend ActiveSupport::Concern
 
   included do
-    attr_accessor :skip_fixed_version_validation,
-                  :skip_descendants_validation
+    attr_accessor :skip_descendants_validation
 
     validates_presence_of :subject, :priority, :project, :type, :author, :status
 
@@ -48,9 +47,6 @@ module WorkPackage::Validations
                       allow_blank: true },
               unless: Proc.new { |wp| wp.start_date.blank? }
     validates :due_date, date: { allow_blank: true }
-
-    validate :validate_fixed_version_is_assignable, unless: :skip_fixed_version_validation?
-    validate :validate_fixed_version_is_still_open, unless: :skip_fixed_version_validation?
     validate :validate_enabled_type
 
     validate :validate_milestone_constraint
@@ -91,24 +87,6 @@ module WorkPackage::Validations
     self.skip_descendants_validation = false
 
     super_return
-  end
-
-  def skip_fixed_version_validation?
-    !!skip_fixed_version_validation
-  end
-
-  def validate_fixed_version_is_assignable
-    if fixed_version_id && !assignable_versions.map(&:id).include?(fixed_version_id)
-      errors.add :fixed_version_id, :inclusion
-    end
-  end
-
-  def validate_fixed_version_is_still_open
-    if fixed_version && assignable_versions.include?(fixed_version)
-      if reopened? && fixed_version.closed?
-        errors.add :base, I18n.t(:error_can_not_reopen_work_package_on_closed_version)
-      end
-    end
   end
 
   def validate_enabled_type
