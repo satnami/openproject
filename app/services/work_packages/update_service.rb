@@ -67,7 +67,9 @@ class WorkPackages::UpdateService
 
   def save_if_valid(result)
     if result.success?
-      unless result.result.all?(&:save)
+      self_work_package, other_work_packages = result.result.partition { |r| r.id == work_package.id }
+
+      unless self_work_package.first.save && other_work_packages.all? { |m| m.save(validate: false) }
         result.success = false
         result.errors += result.result.reject { |r| r.errors.empty? }.map(&:errors)
       end
