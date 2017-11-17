@@ -43,7 +43,7 @@ class WorkPackages::UpdateAncestorsService
 
     set_journal_note(modified)
 
-    ServiceResult.new(success: modified.all?(&:save),
+    ServiceResult.new(success: modified.all? { |m| m.save(validate: false) },
                       errors: modified.map(&:errors).reject(&:empty?),
                       result: modified)
   end
