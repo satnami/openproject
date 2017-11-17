@@ -530,11 +530,20 @@ class WorkPackage < ActiveRecord::Base
     following = Relation
                 .where(to: work_packages)
                 .hierarchy_or_follows
-                .select(:from_id)
 
-    WorkPackage
-      .where(id: Relation.hierarchy.where(from_id: following).select(:to_id))
-      .or(WorkPackage.where(id: following))
+    following_from_hierarchy = Relation
+                               .hierarchy
+                               .where(from_id: following.select(:from_id))
+                               .select("to_id common_id")
+
+    following_from_self = following.select("from_id common_id")
+
+    # Using a union here for performance.
+    # Using or would yield the same results and be less complicated
+    # but it will require two orders of magnitude more time.
+    sub_query = [following_from_hierarchy, following_from_self].map(&:to_sql).join(" UNION ")
+
+    where("id IN (SELECT common_id FROM (#{sub_query}) following_relations)")
   end
 
   protected
