@@ -53,7 +53,9 @@ class WorkPackages::UpdateService
     result = set_attributes(attributes)
 
     if result.success?
-      result.merge!(update_dependent(attributes))
+      cleanup(result)
+
+      result.merge!(reschedule_related)
     end
 
     if save_if_valid(result)
@@ -77,8 +79,6 @@ class WorkPackages::UpdateService
   def update_dependent(attributes)
     result = ServiceResult.new(success: true, errors: [], result: [])
 
-    result.merge!(update_descendants)
-
     cleanup(attributes) if result.success?
 
     result.merge!(reschedule_related)
@@ -94,30 +94,19 @@ class WorkPackages::UpdateService
       .call(attributes)
   end
 
-  def update_descendants
-    result = ServiceResult.new(success: true, errors: [], result: [])
+  def cleanup(result)
+    changed_project = result.result.select(&:project_id_changed?)
 
-    if work_package.project_id_changed?
-      attributes = { project: work_package.project }
-
-      work_package.descendants.each do |descendant|
-        result.merge!(set_attributes(attributes, descendant))
-      end
-    end
-
-    result
-  end
-
-  def cleanup(attributes)
-    project_id = attributes[:project_id] || (attributes[:project] && attributes[:project].id)
-
-    if project_id
+    if changed_project.any?
       moved_work_packages = [work_package] + work_package.descendants
       delete_relations(moved_work_packages)
-      move_time_entries(moved_work_packages, project_id)
+      move_time_entries(moved_work_packages)
     end
-    if attributes.include?(:type_id) || attributes.include?(:type)
-      reset_custom_values
+
+    changed_type = result.result.select(&:type_id_changed?)
+
+    if changed_type.any?
+      reset_custom_values(changed_type)
     end
   end
 
@@ -129,14 +118,16 @@ class WorkPackages::UpdateService
     end
   end
 
-  def move_time_entries(work_packages, project_id)
+  def move_time_entries(work_packages)
+    project_id = work_packages.first.project_id
+
     TimeEntry
       .on_work_packages(work_packages)
       .update_all(project_id: project_id)
   end
 
-  def reset_custom_values
-    work_package.reset_custom_values!
+  def reset_custom_values(work_packages)
+    work_packages.each(&:reset_custom_values!)
   end
 
   def reschedule_related

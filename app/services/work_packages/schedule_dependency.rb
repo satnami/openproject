@@ -182,9 +182,7 @@ class WorkPackages::ScheduleDependency
         if parent
           [parent] + ancestors_from_preloaded(parent)
         end
-      else
-        []
-      end
+      end || []
     end
 
     def descendants_from_preloaded(work_package)

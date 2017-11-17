@@ -537,45 +537,6 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
       end
     end
 
-    describe 'moving descendants on project_id changes' do
-      let(:other_project) do
-        FactoryGirl.create(:project).tap do |p|
-          p.add_member! user, role
-        end
-      end
-      let(:attributes) { { project: other_project } }
-
-      before do
-        parent_work_package
-        child_work_package
-        grandchild_work_package
-      end
-
-      it 'moves the work_package along with its descendants' do
-        expect(subject)
-          .to be_success
-
-        expect(subject.result)
-          .to match_array([work_package, child_work_package, grandchild_work_package])
-
-        expect(work_package.project)
-          .to eql(attributes[:project])
-
-        child_work_package.reload
-        expect(child_work_package.project)
-          .to eql(attributes[:project])
-
-        grandchild_work_package.reload
-        expect(grandchild_work_package.project)
-          .to eql(attributes[:project])
-
-        # is unchanged
-        parent_work_package.reload
-        expect(parent_work_package.project)
-          .to eql(project)
-      end
-    end
-
     describe 'rescheduling work packages along follows/hierarchy relations' do
       # layout
       #                   following_parent_work_package +-follows- following2_parent_work_package   following3_parent_work_package
