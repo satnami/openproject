@@ -39,7 +39,7 @@ class Relations::CreateService < Relations::BaseService
   def call(relation, send_notifications: true)
     initialize_contract! relation
 
-    as_user_and_sending(send_notifications) do
+    in_context(send_notifications) do
       update_relation relation, {}
     end
   end

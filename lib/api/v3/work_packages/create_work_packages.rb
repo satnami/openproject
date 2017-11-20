@@ -52,14 +52,12 @@ module API
 
         def represent_create_result(result, current_user)
           if result.success?
-            work_package = result.result.first
+            work_package = result.result
             WorkPackages::WorkPackageRepresenter.create(work_package.reload,
                                                         current_user: current_user,
                                                         embed_links: true)
           else
-            errors = result.errors.first || []
-
-            fail ::API::Errors::ErrorBase.create_and_merge_errors(errors)
+            fail ::API::Errors::ErrorBase.create_and_merge_errors(result.errors)
           end
         end
 

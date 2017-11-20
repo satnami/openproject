@@ -65,7 +65,7 @@ class WorkPackages::MoveService
 
     copied = yield overridden_attributes
 
-    ancestors[work_package.id] = copied.result.first.id
+    ancestors[work_package.id] = copied.result.id
 
     copied
   end

@@ -28,12 +28,12 @@
 # See doc/COPYRIGHT.rdoc for more details.
 #++
 
-module WorkPackages::Shared
+module Shared
   module ServiceContext
     def in_context(send_notifications)
       result = nil
 
-      WorkPackage.transaction do
+      ActiveRecord::Base.transaction do
         User.execute_as user do
           JournalManager.with_send_notifications send_notifications do
             result = yield

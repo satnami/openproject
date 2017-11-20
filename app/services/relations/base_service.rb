@@ -30,6 +30,7 @@
 
 class Relations::BaseService
   include Concerns::Contracted
+  include Shared::ServiceContext
 
   attr_accessor :user
 
@@ -63,33 +64,12 @@ class Relations::BaseService
                       .new(user: user, work_package: relation.to)
                       .call
 
-    save_result = if schedule_result.success?
-                    schedule_result.result.each(&:save)
-                  else
-                    schedule_result.success?
-                  end
+    save_result = if schedule_result.success? && schedule_result.result.save
+                    schedule_result.dependent_results.each { |dr| dr.result.save(validate: false) }
+                  end || false
 
     schedule_result.success = save_result
 
     schedule_result
-  end
-
-  # TODO: copied from wp update service
-  def as_user_and_sending(send_notifications)
-    result = nil
-
-    Relation.transaction do
-      User.execute_as user do
-        JournalManager.with_send_notifications send_notifications do
-          result = yield
-
-          if result.failure?
-            raise ActiveRecord::Rollback
-          end
-        end
-      end
-    end
-
-    result
   end
 end

@@ -107,8 +107,7 @@ module API
 
                 work_package_representer
               else
-                # TODO: cope with having multiple errors
-                fail ::API::Errors::ErrorBase.create_and_merge_errors(call.errors.first)
+                fail ::API::Errors::ErrorBase.create_and_merge_errors(call.errors)
               end
             end
 

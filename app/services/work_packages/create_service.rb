@@ -30,7 +30,7 @@
 
 class WorkPackages::CreateService
   include ::WorkPackages::Shared::UpdateAncestors
-  include ::WorkPackages::Shared::ServiceContext
+  include ::Shared::ServiceContext
 
   attr_accessor :user,
                 :work_package,

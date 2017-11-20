@@ -41,7 +41,7 @@ class Relations::UpdateService < Relations::BaseService
   end
 
   def call(attributes: {}, send_notifications: true)
-    as_user_and_sending(send_notifications) do
+    in_context(send_notifications) do
       update_relation relation, attributes
     end
   end

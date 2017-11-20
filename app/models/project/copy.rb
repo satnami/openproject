@@ -162,19 +162,19 @@ module Project::Copy
                        .call(attributes: overrides)
 
         if service_call.success?
-          new_work_package = service_call.result.first
+          new_work_package = service_call.result
 
           work_packages_map[issue.id] = new_work_package
         elsif logger && logger.info
-          compiled_errors << service_call.errors.first
+          compiled_errors << service_call.errors
           logger.info <<-MSG
-            Project#copy_work_packages: work package ##{issue.id} could not be copied: #{service_call.errors.first.full_messages}
+            Project#copy_work_packages: work package ##{issue.id} could not be copied: #{service_call.errors.full_messages}
           MSG
         end
       end
 
       # reload all work_packages in our map, they might be modified by movement in their tree
-      work_packages_map.each do |_, v| v.reload end
+      work_packages_map.each_value(&:reload)
 
       # Relations and attachments after in case issues related each other
       to_copy.each do |issue|

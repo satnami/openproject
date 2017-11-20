@@ -107,7 +107,7 @@ describe Relations::CreateService do
     before do
       expect(WorkPackages::SetScheduleService)
         .to receive(:new)
-        .with(user: user, work_packages: [work_package1])
+        .with(user: user, work_package: work_package1)
         .and_return(set_schedule_service)
 
       expect(set_schedule_service)

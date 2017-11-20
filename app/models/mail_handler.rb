@@ -452,13 +452,13 @@ class MailHandler < ActionMailer::Base
                    .call(attributes: attributes, work_package: work_package)
 
     if service_call.success?
-      work_package = service_call.result.first
+      work_package = service_call.result
 
       add_watchers(work_package)
       add_attachments(work_package)
       work_package
     else
-      service_call.errors.first
+      service_call.errors
     end
   end
 
@@ -480,12 +480,12 @@ class MailHandler < ActionMailer::Base
                    .call(attributes: attributes)
 
     if service_call.success?
-      work_package = service_call.result.first
+      work_package = service_call.result
 
       add_attachments(work_package)
       work_package
     else
-      service_call.errors.first
+      service_call.errors
     end
   end
 

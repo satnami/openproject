@@ -29,11 +29,11 @@
 #++
 
 class WorkPackages::SetScheduleService
-  attr_accessor :user, :work_package
+  attr_accessor :user, :work_packages
 
   def initialize(user:, work_package:)
     self.user = user
-    self.work_package = work_package
+    self.work_packages = Array(work_package)
   end
 
   def call(attributes = %i(start_date due_date))
@@ -48,7 +48,7 @@ class WorkPackages::SetScheduleService
     end
 
     result = WorkPackages::ServiceResult.new(success: true,
-                                             result: work_package)
+                                             result: work_packages.first)
 
     altered.each do |wp|
       result.add_dependent!(WorkPackages::ServiceResult.new(success: true,
@@ -61,7 +61,7 @@ class WorkPackages::SetScheduleService
   private
 
   def schedule_by_parent
-    [work_package]
+    work_packages
       .select { |wp| wp.start_date.nil? && wp.parent }
       .each { |wp| wp.start_date = wp.parent.soonest_start }
   end
@@ -77,7 +77,7 @@ class WorkPackages::SetScheduleService
   def schedule_following
     altered = []
 
-    WorkPackages::ScheduleDependency.new([work_package]).each do |scheduled, dependency|
+    WorkPackages::ScheduleDependency.new(work_packages).each do |scheduled, dependency|
       reschedule(scheduled, dependency)
 
       altered << scheduled if scheduled.changed?

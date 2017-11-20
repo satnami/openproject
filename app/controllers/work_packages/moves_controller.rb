@@ -62,7 +62,7 @@ class WorkPackages::MovesController < ApplicationController
                            journal_note: @notes)
 
       if service_call.success?
-        moved_work_packages << service_call.result.first
+        moved_work_packages << service_call.result
       else
         unsaved_work_package_ids << work_package.id
       end

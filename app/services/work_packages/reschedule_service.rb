@@ -29,7 +29,7 @@
 #++
 
 class WorkPackages::RescheduleService
-  include ::WorkPackages::Shared::ServiceContext
+  include ::Shared::ServiceContext
 
   attr_accessor :user,
                 :work_package
@@ -48,23 +48,17 @@ class WorkPackages::RescheduleService
   end
 
   def update(date)
-    result = set_attributes(date)
+    result = set_dates_on_lowest_level(date)
 
-    if result.success?
-      result.merge!(reschedule_related(result.all_results))
-    end
+    return result if persist(result).failure?
+
+    related_result = reschedule_related(result)
+    combine_results(result, related_result)
 
     persist(result)
   end
 
-  def reschedule_related(work_packages)
-    WorkPackages::SetScheduleService
-      .new(user: user,
-           work_packages: work_packages)
-      .call(%i(start_date due_date))
-  end
-
-  def set_attributes(date)
+  def set_dates_on_lowest_level(date)
     if work_package.leaf?
       reschedule(work_package, date)
     else
@@ -72,20 +66,31 @@ class WorkPackages::RescheduleService
     end
   end
 
-  def set_dates(scheduled, attributes)
-    WorkPackages::SetAttributesService
+  def reschedule_related(result)
+    schedule_starts = if work_package.leaf?
+                        work_package
+                      else
+                        result.dependent_results.map(&:result)
+                      end
+
+    set_schedule(schedule_starts)
+  end
+
+  def set_schedule(work_packages)
+    WorkPackages::SetScheduleService
       .new(user: user,
-           work_package: scheduled,
-           contract: WorkPackages::UpdateContract)
-      .call(attributes)
+           work_package: work_packages)
+      .call(%i(start_date due_date))
   end
 
   def reschedule_leaves(date)
-    injected = WorkPackages::ServiceResult.new(success: true, result: work_package)
+    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
 
-    work_package.leaves.inject(injected) do |result, leaf|
-      result.merge!(reschedule(leaf, date))
+    work_package.leaves.each do |leaf|
+      result.add_dependent!(reschedule(leaf, date))
     end
+
+    result
   end
 
   def reschedule(scheduled, date)
@@ -99,11 +104,30 @@ class WorkPackages::RescheduleService
     end
   end
 
+  def set_dates(scheduled, attributes)
+    WorkPackages::SetAttributesService
+      .new(user: user,
+           work_package: scheduled,
+           contract: WorkPackages::UpdateContract)
+      .call(attributes)
+  end
+
   def persist(result)
-    return result unless result.success? && result.all_errors.empty?
+    return result unless result.success? && result.all_errors.all?(&:empty?)
 
     result.success = result.result.save && result.dependent_results.all? { |res| res.result.save(validate: false) }
 
     result
+  end
+
+  def combine_results(start_result, related_result)
+    related_result.dependent_results.reject! do |dr|
+      if dr.result == work_package
+        start_result.result = dr.result
+        start_result.errors = dr.errors
+      end
+    end
+
+    start_result.merge!(related_result)
   end
 end

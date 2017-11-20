@@ -65,13 +65,7 @@ module API
                    .new(user: current_user, work_package: work_package, contract: contract_class)
                    .call({})
 
-          errors = result.errors.first
-
-          api_errors = if errors
-                         ::API::Errors::ErrorBase.create_errors(errors)
-                       else
-                         []
-                       end
+          api_errors = ::API::Errors::ErrorBase.create_errors(result.errors)
 
           # errors for invalid data (e.g. validation errors) are handled inside the form
           if only_validation_errors(api_errors)
