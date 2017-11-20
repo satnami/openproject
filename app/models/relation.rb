@@ -189,15 +189,15 @@ class Relation < ActiveRecord::Base
     else
       self.delay = nil
     end
-    set_dates_of_target
+    #set_dates_of_target
   end
 
-  def set_dates_of_target
-    soonest_start = successor_soonest_start
-    if soonest_start && from
-      from.reschedule_after(soonest_start)
-    end
-  end
+  #def set_dates_of_target
+  #  soonest_start = successor_soonest_start
+  #  if soonest_start && from
+  #    from.reschedule_after(soonest_start)
+  #  end
+  #end
 
   def successor_soonest_start
     if relation_type == TYPE_FOLLOWS && (to.start_date || to.due_date)

@@ -66,7 +66,6 @@ describe WorkPackages::CreateService, 'integration', type: :model do
   let(:new_work_package) do
     service_result
       .result
-      .first
   end
   let(:service_result) do
     instance

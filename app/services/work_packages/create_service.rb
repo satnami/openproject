@@ -30,6 +30,7 @@
 
 class WorkPackages::CreateService
   include ::WorkPackages::Shared::UpdateAncestors
+  include ::WorkPackages::Shared::ServiceContext
 
   attr_accessor :user,
                 :work_package,
@@ -43,7 +44,7 @@ class WorkPackages::CreateService
   def call(attributes: {},
            work_package: WorkPackage.new,
            send_notifications: true)
-    as_user_and_sending(send_notifications) do
+    in_context(send_notifications) do
       create(attributes, work_package)
     end
   end
@@ -57,10 +58,9 @@ class WorkPackages::CreateService
 
     if result.success?
       result.merge!(reschedule_related(work_package))
-      result.merge!(update_ancestors_all_attributes(result.result))
+      result.merge!(update_ancestors_all_attributes(result.all_results))
     else
       result.success = false
-      result.errors << work_package.errors
     end
 
     result
@@ -77,30 +77,13 @@ class WorkPackages::CreateService
   def reschedule_related(work_package)
     result = WorkPackages::SetScheduleService
              .new(user: user,
-                  work_packages: [work_package])
+                  work_package: work_package)
              .call
 
-    unless result.success? && result.result.all?(&:save)
-      result.sucess = false
-      result.errors = result.result.select(&:changed?).map(&:errors)
-    end
-
-    result
-  end
-
-  # TODO: copied
-  def as_user_and_sending(send_notifications)
-    result = nil
-
-    WorkPackage.transaction do
-      User.execute_as user do
-        JournalManager.with_send_notifications send_notifications do
-          result = yield
-
-          if result.failure?
-            raise ActiveRecord::Rollback
-          end
-        end
+    result.self_and_dependent.each do |r|
+      if !r.result.save
+        result.success = false
+        r.errors = r.result.errors
       end
     end
 

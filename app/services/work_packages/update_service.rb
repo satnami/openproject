@@ -30,6 +30,7 @@
 
 class WorkPackages::UpdateService
   include ::WorkPackages::Shared::UpdateAncestors
+  include ::WorkPackages::Shared::ServiceContext
 
   attr_accessor :user,
                 :work_package,
@@ -42,7 +43,7 @@ class WorkPackages::UpdateService
   end
 
   def call(attributes: {}, send_notifications: true)
-    as_user_and_sending(send_notifications) do
+    in_context(send_notifications) do
       update(attributes)
     end
   end
@@ -53,9 +54,7 @@ class WorkPackages::UpdateService
     result = set_attributes(attributes)
 
     if result.success?
-      cleanup(result)
-
-      result.merge!(reschedule_related)
+      result.merge!(update_dependent(attributes))
     end
 
     if save_if_valid(result)
@@ -67,11 +66,9 @@ class WorkPackages::UpdateService
 
   def save_if_valid(result)
     if result.success?
-      self_work_package, other_work_packages = result.result.partition { |r| r.id == work_package.id }
-
-      unless self_work_package.first.save && other_work_packages.all? { |m| m.save(validate: false) }
+      # TODO: check for optimization (don't validate all?)
+      unless result.all_results.all?(&:save)
         result.success = false
-        result.errors += result.result.reject { |r| r.errors.empty? }.map(&:errors)
       end
     end
 
@@ -79,7 +76,9 @@ class WorkPackages::UpdateService
   end
 
   def update_dependent(attributes)
-    result = ServiceResult.new(success: true, errors: [], result: [])
+    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
+
+    result.merge!(update_descendants)
 
     cleanup(attributes) if result.success?
 
@@ -96,19 +95,30 @@ class WorkPackages::UpdateService
       .call(attributes)
   end
 
-  def cleanup(result)
-    changed_project = result.result.select(&:project_id_changed?)
+  def update_descendants
+    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
 
-    if changed_project.any?
-      moved_work_packages = [work_package] + work_package.descendants
-      delete_relations(moved_work_packages)
-      move_time_entries(moved_work_packages)
+    if work_package.project_id_changed?
+      attributes = { project: work_package.project }
+
+      work_package.descendants.each do |descendant|
+        result.add_dependent!(set_attributes(attributes, descendant))
+      end
     end
 
-    changed_type = result.result.select(&:type_id_changed?)
+    result
+  end
 
-    if changed_type.any?
-      reset_custom_values(changed_type)
+  def cleanup(attributes)
+    project_id = attributes[:project_id] || (attributes[:project] && attributes[:project].id)
+
+    if project_id
+      moved_work_packages = [work_package] + work_package.descendants
+      delete_relations(moved_work_packages)
+      move_time_entries(moved_work_packages, project_id)
+    end
+    if attributes.include?(:type_id) || attributes.include?(:type)
+      reset_custom_values
     end
   end
 
@@ -120,41 +130,21 @@ class WorkPackages::UpdateService
     end
   end
 
-  def move_time_entries(work_packages)
-    project_id = work_packages.first.project_id
-
+  def move_time_entries(work_packages, project_id)
     TimeEntry
       .on_work_packages(work_packages)
       .update_all(project_id: project_id)
   end
 
-  def reset_custom_values(work_packages)
-    work_packages.each(&:reset_custom_values!)
+  def reset_custom_values
+    work_package.reset_custom_values!
   end
 
   def reschedule_related
     WorkPackages::SetScheduleService
       .new(user: user,
-           work_packages: [work_package])
+           work_package: work_package)
       .call(work_package.changed.map(&:to_sym))
-  end
-
-  def as_user_and_sending(send_notifications)
-    result = nil
-
-    WorkPackage.transaction do
-      User.execute_as user do
-        JournalManager.with_send_notifications send_notifications do
-          result = yield
-
-          if result.failure?
-            raise ActiveRecord::Rollback
-          end
-        end
-      end
-    end
-
-    result
   end
 
   def call_and_assign(method, params, updated, errors)

@@ -187,7 +187,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.category)
+              expect(subject.result.category)
                 .to eql target_category
             end
           end
@@ -202,7 +202,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.category)
+              expect(subject.result.category)
                 .to be_nil
             end
           end
@@ -227,7 +227,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.fixed_version)
+              expect(subject.result.fixed_version)
                 .to be_nil
             end
           end
@@ -239,7 +239,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.fixed_version)
+              expect(subject.result.fixed_version)
                 .to eql version
             end
           end
@@ -254,7 +254,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
                 expect(subject)
                   .to be_success
 
-                expect(subject.result.first.fixed_version)
+                expect(subject.result.fixed_version)
                   .to be_nil
               end
             end
@@ -266,7 +266,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
                 expect(subject)
                   .to be_success
 
-                expect(subject.result.first.fixed_version)
+                expect(subject.result.fixed_version)
                   .to eql version
               end
             end
@@ -286,7 +286,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.type)
+              expect(subject.result.type)
                 .to eql type
             end
           end
@@ -298,7 +298,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.type)
+              expect(subject.result.type)
                 .to eql default_type
             end
           end
@@ -310,7 +310,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
               expect(subject)
                 .to be_success
 
-              expect(subject.result.first.type)
+              expect(subject.result.type)
                 .to eql other_type
             end
           end

@@ -72,7 +72,7 @@ describe WorkPackages::UpdateService, type: :model do
       instance
     end
     let(:errors) { [] }
-    let(:set_service_results) { ServiceResult.new success: true, errors: errors, result: [work_package] }
+    let(:set_service_results) { WorkPackages::ServiceResult.new success: true, result: work_package }
     let(:work_package_save_result) { true }
 
     before do
@@ -113,7 +113,7 @@ describe WorkPackages::UpdateService, type: :model do
 
       context 'when setting the attributes is unsuccessful (invalid)' do
         let(:errors) { double('set errors', empty?: false) }
-        let(:set_service_results) { ServiceResult.new success: false, errors: [errors], result: [] }
+        let(:set_service_results) { ServiceResult.new success: false, errors: errors, result: work_package }
 
         it 'is unsuccessful' do
           expect(subject.success?).to be_falsey
@@ -128,7 +128,7 @@ describe WorkPackages::UpdateService, type: :model do
         it 'exposes the errors' do
           subject
 
-          expect(subject.errors).to match_array [errors]
+          expect(subject.errors).to eql errors
         end
       end
 
@@ -155,7 +155,7 @@ describe WorkPackages::UpdateService, type: :model do
         it "exposes the work_packages's errors" do
           subject
 
-          expect(subject.errors).to eql [saving_errors]
+          expect(subject.errors).to eql saving_errors
         end
       end
     end

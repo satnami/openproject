@@ -29,6 +29,8 @@
 #++
 
 class WorkPackages::CopyService
+  include ::WorkPackages::Shared::ServiceContext
+
   attr_accessor :user,
                 :work_package,
                 :contract
@@ -40,7 +42,7 @@ class WorkPackages::CopyService
   end
 
   def call(attributes: {}, send_notifications: true)
-    as_user_and_sending do
+    in_context(send_notifications) do
       copy(attributes, send_notifications)
     end
   end
@@ -53,7 +55,7 @@ class WorkPackages::CopyService
     copied = create(attributes, send_notifications)
 
     if copied.success?
-      copy_watchers(copied.result.first)
+      copy_watchers(copied.result)
     end
 
     copied
@@ -80,22 +82,5 @@ class WorkPackages::CopyService
     work_package.watchers.each do |watcher|
       copied.add_watcher(watcher.user) if watcher.user.active?
     end
-  end
-
-  # TODO: copied
-  def as_user_and_sending
-    result = nil
-
-    WorkPackage.transaction do
-      User.execute_as user do
-        result = yield
-
-        if result.failure?
-          raise ActiveRecord::Rollback
-        end
-      end
-    end
-
-    result
   end
 end

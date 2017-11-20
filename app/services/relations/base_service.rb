@@ -60,7 +60,7 @@ class Relations::BaseService
 
   def reschedule(relation)
     schedule_result = WorkPackages::SetScheduleService
-                      .new(user: user, work_packages: [relation.to])
+                      .new(user: user, work_package: relation.to)
                       .call
 
     save_result = if schedule_result.success?

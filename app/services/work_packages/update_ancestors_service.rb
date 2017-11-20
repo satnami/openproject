@@ -43,7 +43,7 @@ class WorkPackages::UpdateAncestorsService
 
     set_journal_note(modified)
 
-    ServiceResult.new(success: modified.all? { |m| m.save(validate: false) },
+    ServiceResult.new(success: modified.all?(&:save),
                       errors: modified.map(&:errors).reject(&:empty?),
                       result: modified)
   end
@@ -51,10 +51,8 @@ class WorkPackages::UpdateAncestorsService
   private
 
   def update_ancestors(attributes)
-    return [] unless attributes_justify_inheritance?(attributes)
-
     work_package.ancestors.includes(:status).select do |ancestor|
-      inherit_attributes(ancestor)
+      inherit_attributes(ancestor, attributes)
 
       ancestor.changed?
     end
@@ -66,12 +64,14 @@ class WorkPackages::UpdateAncestorsService
     parent = WorkPackage.find(previous_parent_id(work_package))
 
     ([parent] + parent.ancestors).each do |ancestor|
-      inherit_attributes(ancestor)
+      inherit_attributes(ancestor, %i(estimated_hours done_ratio))
     end.select(&:changed?)
   end
 
-  def inherit_attributes(ancestor)
-    leaves = ancestor.leaves.select(selected_leaf_attributes).includes(:status).to_a
+  def inherit_attributes(ancestor, attributes)
+    return unless attributes_justify_inheritance?(attributes)
+
+    leaves = ancestor.leaves.select(:done_ratio, :estimated_hours, :status_id).includes(:status).to_a
 
     inherit_done_ratio(ancestor, leaves)
 
@@ -162,9 +162,5 @@ class WorkPackages::UpdateAncestorsService
 
   def attributes_justify_inheritance?(attributes)
     (%i(estimated_hours done_ratio parent parent_id status status_id) & attributes).any?
-  end
-
-  def selected_leaf_attributes
-    %i(done_ratio estimated_hours status_id)
   end
 end

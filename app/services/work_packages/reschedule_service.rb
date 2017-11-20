@@ -29,6 +29,8 @@
 #++
 
 class WorkPackages::RescheduleService
+  include ::WorkPackages::Shared::ServiceContext
+
   attr_accessor :user,
                 :work_package
 
@@ -38,50 +40,21 @@ class WorkPackages::RescheduleService
   end
 
   def call(date)
-    as_user_and_sending(true) do
+    in_context(true) do
       return if date.nil?
 
       update(date)
     end
   end
 
-  def reschedule_leaves(date)
-    work_package.leaves.map do |leaf|
-      reschedule(leaf, date)
-    end
-  end
-
-  def reschedule(scheduled, date)
-    if scheduled.start_date.nil? || scheduled.start_date < date
-      attributes = { due_date: date + scheduled.duration - 1,
-                     start_date: date }
-
-      set_dates(scheduled, attributes)
-    end
-  end
-
   def update(date)
-    unit_of_work = []
-    errors = []
+    result = set_attributes(date)
 
-    results = set_attributes(date).compact
-
-    if results.all?(&:success?) && results.any?
-      unit_of_work += results.map(&:result).flatten
-
-      reschedule_related(unit_of_work).tap do |reschedule_results|
-        errors += reschedule_results.errors
-        unit_of_work += reschedule_results.result
-      end
-
-      unit_of_work.uniq!
-
-      unit_of_work.all?(&:save) if errors.all?(&:empty?)
+    if result.success?
+      result.merge!(reschedule_related(result.all_results))
     end
 
-    ServiceResult.new(success: errors.all?(&:empty?),
-                      errors: errors,
-                      result: unit_of_work)
+    persist(result)
   end
 
   def reschedule_related(work_packages)
@@ -93,7 +66,7 @@ class WorkPackages::RescheduleService
 
   def set_attributes(date)
     if work_package.leaf?
-      [reschedule(work_package, date)]
+      reschedule(work_package, date)
     else
       reschedule_leaves(date)
     end
@@ -107,21 +80,29 @@ class WorkPackages::RescheduleService
       .call(attributes)
   end
 
-  # TODO copied from Update service
-  def as_user_and_sending(send_notifications)
-    result = nil
+  def reschedule_leaves(date)
+    injected = WorkPackages::ServiceResult.new(success: true, result: work_package)
 
-    WorkPackage.transaction do
-      User.execute_as user do
-        JournalManager.with_send_notifications send_notifications do
-          result = yield
-
-          if result.failure?
-            raise ActiveRecord::Rollback
-          end
-        end
-      end
+    work_package.leaves.inject(injected) do |result, leaf|
+      result.merge!(reschedule(leaf, date))
     end
+  end
+
+  def reschedule(scheduled, date)
+    if scheduled.start_date.nil? || scheduled.start_date < date
+      attributes = { due_date: date + scheduled.duration - 1,
+                     start_date: date }
+
+      set_dates(scheduled, attributes)
+    else
+      WorkPackages::ServiceResult.new(success: true, result: scheduled)
+    end
+  end
+
+  def persist(result)
+    return result unless result.success? && result.all_errors.empty?
+
+    result.success = result.result.save && result.dependent_results.all? { |res| res.result.save(validate: false) }
 
     result
   end

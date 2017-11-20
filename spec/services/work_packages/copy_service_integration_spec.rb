@@ -67,7 +67,6 @@ describe WorkPackages::CopyService, 'integration', type: :model do
   let(:copy) do
     service_result
       .result
-      .first
   end
   let(:service_result) do
     instance

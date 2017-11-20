@@ -36,7 +36,7 @@ describe WorkPackages::SetScheduleService do
                               due_date: Date.today)
   end
   let(:instance) do
-    described_class.new(user: user, work_packages: [work_package])
+    described_class.new(user: user, work_package: work_package)
   end
   let(:following) do
     { [work_package] => [] }
@@ -158,14 +158,16 @@ describe WorkPackages::SetScheduleService do
       end
     end
 
-    it 'returns only the changed work packages' do
+    it 'returns only the original and the changed work packages' do
       expected_to_change = if defined?(unchanged)
                              expected.keys - unchanged
                            else
                              expected.keys
                            end
 
-      expect(subject.result)
+      expected_to_change << work_package
+
+      expect(subject.all_results)
         .to match_array expected_to_change
     end
   end
