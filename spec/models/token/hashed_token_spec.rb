@@ -1,4 +1,3 @@
-#-- encoding: UTF-8
 #-- copyright
 # OpenProject is a project management system.
 # Copyright (C) 2012-2017 the OpenProject Foundation (OPF)
@@ -27,42 +26,42 @@
 # See doc/COPYRIGHT.rdoc for more details.
 #++
 
-class Token < ActiveRecord::Base
-  belongs_to :user
+require 'spec_helper'
 
-  validates :user, presence: true
-  validates :action, presence: true
-  validates_uniqueness_of :value
+describe ::Token::HashedToken, type: :model do
+  let(:user) { FactoryGirl.build(:user) }
 
-  before_create :delete_previous_tokens
-  before_create :assign_generated_token
+  subject { described_class.new user: user }
 
-  @@validity_time = 1.day
+  describe 'token value' do
+    it 'is generated on a new instance' do
+      expect(subject.value).to be_present
+    end
 
-  # Return true if token has expired
-  def expired?
-    Time.now > created_on + @@validity_time
-  end
+    it 'provides the generated plain value on a new instance' do
+      expect(subject.valid_plaintext?(subject.plain_value)).to eq true
+    end
 
-  # Delete all expired tokens
-  def self.destroy_expired
-    Token.where(["action <> 'feeds' AND created_on < ?", Time.now - @@validity_time]).delete_all
-  end
+    it 'hashes the plain value to value' do
+      expect(subject.value).not_to eq(subject.plain_value)
+    end
 
-  def self.generate_token_value
-    SecureRandom.hex(20)
-  end
+    it 'does not keep the value when finding it' do
+      subject.save!
 
-  private
-
-  # Removes obsolete tokens (same user and action)
-  def delete_previous_tokens
-    if user
-      Token.where(user_id: user.id, action: action).delete_all
+      instance = described_class.where(user: user).last
+      expect(instance.plain_value).to eq nil
     end
   end
 
-  def assign_generated_token
-    self.value = self.class.generate_token_value
+  describe '#find_by_plaintext_value' do
+    before do
+      subject.save!
+    end
+
+    it 'finds using the plaintext value' do
+      expect(described_class.find_by_plaintext_value(subject.plain_value)).to eq subject
+      expect(described_class.find_by_plaintext_value('foobar')).to eq nil
+    end
   end
 end

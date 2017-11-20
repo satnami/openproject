@@ -1,3 +1,5 @@
+#-- encoding: UTF-8
+
 #-- copyright
 # OpenProject is a project management system.
 # Copyright (C) 2012-2017 the OpenProject Foundation (OPF)
@@ -26,17 +28,9 @@
 # See doc/COPYRIGHT.rdoc for more details.
 #++
 
-Feature: Project accession for a user with a valid membership
+require_dependency 'token/hashed_token'
 
-@javascript
-Scenario: User is able to see the project so long he has a valid membership.
-Given there is a role "super_user"
-And there is 1 project with the following:
-      | name        | P1               |
-      | identifier  | p1               |
-And there is 1 user with the following:
-      | login     | bob       |
-And I am logged in as "bob"
-And the user "bob" is a "super_user" in the project "P1"
-When I go to the overview page of the project "P1"
-Then I should see "Bob" within "#content"
+module Token
+  class Api < HashedToken
+  end
+end
