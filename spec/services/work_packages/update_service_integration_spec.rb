@@ -61,6 +61,7 @@ describe WorkPackages::UpdateService, 'integration tests', type: :model do
     FactoryGirl.create(:work_package,
                        work_package_attributes).tap do |w|
       w.children << work_package
+      work_package.reload
     end
   end
   let(:grandparent_work_package) do

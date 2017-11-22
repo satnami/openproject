@@ -53,11 +53,8 @@ module WorkPackages
       end
 
       def update_each_ancestor(work_packages, changes)
-        work_packages.inject(ServiceResult.new(success: true, errors: [], result: [])) do |result, wp|
-          inherit_result = inherit_to_ancestors(wp, changes)
-
-          result.merge!(inherit_result)
-          result
+        work_packages.map do |wp|
+          inherit_to_ancestors(wp, changes)
         end
       end
 

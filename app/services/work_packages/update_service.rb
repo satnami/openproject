@@ -58,7 +58,9 @@ class WorkPackages::UpdateService
     end
 
     if save_if_valid(result)
-      result.merge!(update_ancestors([work_package]))
+      update_ancestors([work_package]).each do |ancestor_result|
+        result.merge!(ancestor_result)
+      end
     end
 
     result

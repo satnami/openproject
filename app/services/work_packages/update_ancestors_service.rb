@@ -43,9 +43,14 @@ class WorkPackages::UpdateAncestorsService
 
     set_journal_note(modified)
 
-    ServiceResult.new(success: modified.all?(&:save),
-                      errors: modified.map(&:errors).reject(&:empty?),
-                      result: modified)
+    result = ServiceResult.new(success: modified.all?(&:save),
+                               result: work_package)
+
+    modified.each do |wp|
+      result.add_dependent!(ServiceResult.new(success: !wp.changed?, result: wp))
+    end
+
+    result
   end
 
   private

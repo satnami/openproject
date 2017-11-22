@@ -44,16 +44,18 @@ describe WorkPackages::UpdateAncestorsService, type: :model do
       end
 
       it 'updated one work package - the parent' do
-        expect(subject.result)
+        expect(subject.dependent_results.map(&:result))
           .to match_array [parent]
       end
 
       it 'has the expected aggregate done ratio' do
-        expect(subject.result.first.done_ratio).to eq aggregate_done_ratio
+        expect(subject.dependent_results.first.result.done_ratio)
+          .to eq aggregate_done_ratio
       end
 
       it 'has the expected estimated_hours' do
-        expect(subject.result.first.estimated_hours).to eq aggregate_estimated_hours
+        expect(subject.dependent_results.first.result.estimated_hours)
+          .to eq aggregate_estimated_hours
       end
 
       it 'is a success' do
@@ -89,7 +91,7 @@ describe WorkPackages::UpdateAncestorsService, type: :model do
       end
 
       it 'does not update the parent' do
-        expect(subject.result)
+        expect(subject.dependent_results)
           .to be_empty
       end
     end
@@ -217,8 +219,8 @@ describe WorkPackages::UpdateAncestorsService, type: :model do
         .to be_success
     end
 
-    it 'returns the former ancestors' do
-      expect(subject.result)
+    it 'returns the former ancestors in the dependent results' do
+      expect(subject.dependent_results.map(&:result))
         .to match_array [parent, grandparent]
     end
 
@@ -282,8 +284,8 @@ describe WorkPackages::UpdateAncestorsService, type: :model do
         .to be_success
     end
 
-    it 'returns the former ancestors' do
-      expect(subject.result)
+    it 'returns the new ancestors in the dependent results' do
+      expect(subject.dependent_results.map(&:result))
         .to match_array [parent, grandparent]
     end
 

@@ -58,7 +58,10 @@ class WorkPackages::CreateService
 
     if result.success?
       result.merge!(reschedule_related(work_package))
-      result.merge!(update_ancestors_all_attributes(result.all_results))
+
+      update_ancestors_all_attributes(result.all_results).each do |ancestor_result|
+        result.merge!(ancestor_result)
+      end
     else
       result.success = false
     end

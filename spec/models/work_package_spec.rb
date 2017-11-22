@@ -993,6 +993,7 @@ describe WorkPackage, type: :model do
 
       # create work_package with one required custom field
       work_package = FactoryGirl.create :work_package
+      work_package.reload
       work_package.project.work_package_custom_fields << cf1
       work_package.type.custom_fields << cf1
 

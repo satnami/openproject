@@ -30,6 +30,7 @@
 
 class WorkPackages::DestroyService
   include ::WorkPackages::Shared::UpdateAncestors
+  include ::Shared::ServiceContext
 
   attr_accessor :user, :work_package
 
@@ -39,7 +40,7 @@ class WorkPackages::DestroyService
   end
 
   def call
-    as_user do
+    in_context(true) do
       destroy
     end
   end
@@ -48,47 +49,26 @@ class WorkPackages::DestroyService
 
   def destroy
     result = ServiceResult.new success: true,
-                               errors: [],
-                               result: [work_package]
+                               result: work_package
 
     descendants = work_package.descendants.to_a
 
     result.success = work_package.destroy
 
     if result.success?
-      result.merge!(update_ancestors_all_attributes(result.result))
+      update_ancestors_all_attributes(result.all_results).each do |ancestor_result|
+        result.merge!(ancestor_result)
+      end
 
       destroy_descendants(descendants, result)
-    else
-      result.errors << work_package.errors
     end
 
     result
   end
 
   def destroy_descendants(descendants, result)
-    unless descendants.each(&:destroy)
-      result.errors += descendants.reject(&:destroyed?).map(&:errors)
-      result.success = false
+    descendants.each do |descendant|
+      result.add_dependent!(ServiceResult.new(success: descendant.destroy, result: descendant))
     end
-
-    result.result += descendants
-  end
-
-  # TODO: copied from update service
-  def as_user
-    result = nil
-
-    WorkPackage.transaction do
-      User.execute_as user do
-        result = yield
-
-        if result.failure?
-          raise ActiveRecord::Rollback
-        end
-      end
-    end
-
-    result
   end
 end

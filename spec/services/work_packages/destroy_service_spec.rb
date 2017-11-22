@@ -66,7 +66,7 @@ describe WorkPackages::DestroyService do
 
   it 'returns the destroyed work package' do
     expect(subject.result)
-      .to match_array [work_package]
+      .to eql work_package
   end
 
   it 'returns an empty errors array' do
@@ -94,8 +94,12 @@ describe WorkPackages::DestroyService do
       inherited_service_instance = double(WorkPackages::UpdateAncestorsService)
 
       service_result = ServiceResult.new(success: true,
-                                         errors: [],
-                                         result: [parent, grandparent])
+                                         result: work_package)
+
+      service_result.dependent_results += [ServiceResult.new(success: true,
+                                                             result: parent),
+                                           ServiceResult.new(success: true,
+                                                             result: grandparent)]
 
       expect(WorkPackages::UpdateAncestorsService)
         .to receive(:new)
@@ -164,7 +168,7 @@ describe WorkPackages::DestroyService do
     it 'returns the descendants as part of the result' do
       subject
 
-      expect(subject.result)
+      expect(subject.all_results)
         .to match_array [work_package] + descendants
     end
 
