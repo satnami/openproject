@@ -40,8 +40,7 @@ describe WorkPackages::MoveService, type: :model do
   let(:child_service_result_work_package) { work_package }
   let(:child_service_result) do
     ServiceResult.new success: true,
-                      result: [child_service_result_work_package],
-                      errors: []
+                      result: child_service_result_work_package
   end
 
   context 'when copying' do
@@ -69,7 +68,7 @@ describe WorkPackages::MoveService, type: :model do
 
     it 'calls the copy service and merges its result' do
       expect(instance.call(project, nil, copy: true).result)
-        .to match_array child_service_result.result
+        .to eql child_service_result.result
     end
 
     context 'when providing a type and attributes' do
@@ -81,7 +80,7 @@ describe WorkPackages::MoveService, type: :model do
 
       it 'calls the copy service and merges its result' do
         expect(instance.call(project, type, attributes: { subject: 'blubs' }, copy: true).result)
-          .to match_array child_service_result.result
+          .to eql child_service_result.result
       end
     end
 
@@ -94,8 +93,7 @@ describe WorkPackages::MoveService, type: :model do
       end
       let(:child_child_service_result) do
         ServiceResult.new success: true,
-                          result: [copied_child_work_package],
-                          errors: []
+                          result: copied_child_work_package
       end
 
       let(:expected_child_attributes) { { project: project, parent_id: child_service_result_work_package.id } }
@@ -115,13 +113,17 @@ describe WorkPackages::MoveService, type: :model do
           .and_return(child_child_service_result)
 
         allow(work_package)
-          .to receive_message_chain(:self_and_descendants, :order_by_ancestors)
-          .and_return [work_package, child_work_package]
+          .to receive_message_chain(:descendants, :order_by_ancestors)
+          .and_return [child_work_package]
       end
 
       it 'calls the copy service twice and merges its result' do
-        expect(instance.call(project, nil, copy: true).result)
-          .to match_array child_service_result.result + child_child_service_result.result
+        call = instance.call(project, nil, copy: true)
+
+        expect(call.result)
+          .to eql child_service_result.result
+        expect(call.dependent_results)
+          .to match_array [child_child_service_result]
       end
     end
   end

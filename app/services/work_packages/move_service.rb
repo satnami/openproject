@@ -24,19 +24,17 @@ class WorkPackages::MoveService
   end
 
   def copy_with_descendants(attributes)
-    result = ServiceResult.new success: true, errors: [], result: []
     ancestors = {}
+    result = copy_with_updated_parent_id(work_package, attributes, ancestors)
 
     work_package
-      .self_and_descendants
+      .descendants
       .order_by_ancestors('asc')
       .each do |wp|
 
-      copied = with_updated_parent_id(wp, attributes, ancestors) do |overridden_attributes|
-        copy(wp, overridden_attributes)
-      end
+      copied = copy_with_updated_parent_id(wp, attributes, ancestors)
 
-      result.merge!(copied)
+      result.add_dependent!(copied)
     end
 
     result
@@ -54,6 +52,12 @@ class WorkPackages::MoveService
       .new(user: user,
            work_package: work_package)
       .call(attributes: attributes)
+  end
+
+  def copy_with_updated_parent_id(wp, attributes, ancestors)
+    with_updated_parent_id(wp, attributes, ancestors) do |overridden_attributes|
+      copy(wp, overridden_attributes)
+    end
   end
 
   def with_updated_parent_id(work_package, attributes, ancestors)

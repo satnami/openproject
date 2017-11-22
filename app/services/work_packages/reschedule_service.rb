@@ -84,7 +84,7 @@ class WorkPackages::RescheduleService
   end
 
   def reschedule_leaves(date)
-    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
+    result = ServiceResult.new(success: true, result: work_package)
 
     work_package.leaves.each do |leaf|
       result.add_dependent!(reschedule(leaf, date))
@@ -100,7 +100,7 @@ class WorkPackages::RescheduleService
 
       set_dates(scheduled, attributes)
     else
-      WorkPackages::ServiceResult.new(success: true, result: scheduled)
+      ServiceResult.new(success: true, result: scheduled)
     end
   end
 

@@ -94,12 +94,13 @@ describe Relations::UpdateService do
 
   context 'when all valid and it is a follows relation' do
     let(:set_schedule_service) { double('set schedule service') }
+    let(:set_schedule_work_package2_result) do
+      ServiceResult.new success: true, result: work_package2, errors: work_package2.errors
+    end
     let(:set_schedule_result) do
-      double('set schedule result',
-             success?: true,
-             result: [work_package2],
-             success: true,
-             errors: [])
+      sr = ServiceResult.new success: true, result: work_package2, errors: work_package2.errors
+      sr.dependent_results << set_schedule_work_package2_result
+      sr
     end
 
     let(:follows_relation) { true }
@@ -114,11 +115,13 @@ describe Relations::UpdateService do
         .to receive(:call)
         .and_return(set_schedule_result)
 
-      set_schedule_result.result.each do |wp|
-        expect(wp)
-          .to receive(:save)
-          .and_return(true)
-      end
+      allow(work_package2)
+        .to receive(:changed?)
+        .and_return(true)
+
+      expect(work_package2)
+        .to receive(:save)
+        .and_return(true)
 
       allow(set_schedule_result)
         .to receive(:success=)
@@ -129,9 +132,14 @@ describe Relations::UpdateService do
         .to be_success
     end
 
-    it 'returns the relation and the altered successor' do
+    it 'returns the relation' do
       expect(subject.result)
-        .to eql [relation, work_package2]
+        .to eql relation
+    end
+
+    it 'has a dependent result for the from-work package' do
+      expect(subject.dependent_results)
+        .to match_array [set_schedule_work_package2_result]
     end
   end
 
@@ -143,7 +151,7 @@ describe Relations::UpdateService do
 
     it 'returns the relation' do
       expect(subject.result)
-        .to eql [relation]
+        .to eql relation
     end
   end
 
@@ -164,7 +172,7 @@ describe Relations::UpdateService do
 
     it "returns the contract's errors" do
       expect(subject.errors)
-        .to eql [contract_errors]
+        .to eql contract_errors
     end
   end
 
@@ -185,7 +193,7 @@ describe Relations::UpdateService do
 
     it "returns the model's errors" do
       expect(subject.errors)
-        .to eql [model_errors]
+        .to eql model_errors
     end
   end
 end

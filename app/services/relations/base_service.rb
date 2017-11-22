@@ -45,7 +45,7 @@ class Relations::BaseService
 
     success, errors = validate_and_save relation
 
-    result = ServiceResult.new success: success, errors: [errors], result: [relation]
+    result = ServiceResult.new success: success, errors: errors, result: relation
 
     if success && relation.follows?
       reschedule_result = reschedule(relation)
@@ -64,8 +64,10 @@ class Relations::BaseService
                       .new(user: user, work_package: relation.to)
                       .call
 
-    save_result = if schedule_result.success? && schedule_result.result.save
-                    schedule_result.dependent_results.each { |dr| dr.result.save(validate: false) }
+    # The to-work_package will not be altered by the schedule service so
+    # we do not have to save the result of the service.
+    save_result = if schedule_result.success?
+                    schedule_result.dependent_results.all? { |dr| !dr.result.changed? || dr.result.save(validate: false) }
                   end || false
 
     schedule_result.success = save_result

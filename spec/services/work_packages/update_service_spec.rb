@@ -72,7 +72,7 @@ describe WorkPackages::UpdateService, type: :model do
       instance
     end
     let(:errors) { [] }
-    let(:set_service_results) { WorkPackages::ServiceResult.new success: true, result: work_package }
+    let(:set_service_results) { ServiceResult.new success: true, result: work_package }
     let(:work_package_save_result) { true }
 
     before do

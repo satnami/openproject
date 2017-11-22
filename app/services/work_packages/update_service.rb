@@ -76,7 +76,7 @@ class WorkPackages::UpdateService
   end
 
   def update_dependent(attributes)
-    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
+    result = ServiceResult.new(success: true, result: work_package)
 
     result.merge!(update_descendants)
 
@@ -96,12 +96,13 @@ class WorkPackages::UpdateService
   end
 
   def update_descendants
-    result = WorkPackages::ServiceResult.new(success: true, result: work_package)
+    result = ServiceResult.new(success: true, result: work_package)
 
     if work_package.project_id_changed?
       attributes = { project: work_package.project }
 
       work_package.descendants.each do |descendant|
+        # TODO: we don't need to use the contract based set_attributes here as it will be slower
         result.add_dependent!(set_attributes(attributes, descendant))
       end
     end

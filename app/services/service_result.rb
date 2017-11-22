@@ -31,14 +31,23 @@
 class ServiceResult
   attr_accessor :success,
                 :errors,
-                :result
+                :result,
+                :dependent_results
 
   def initialize(success: false,
-                 errors: ActiveModel::Errors.new(self),
+                 errors: nil,
                  result: nil)
     self.success = success
-    self.errors = errors
     self.result = result
+    self.errors = if errors
+                    errors
+                  elsif result.respond_to?(:errors)
+                    result.errors
+                  else
+                    ActiveModel::Errors.new(self)
+                  end
+
+    self.dependent_results = []
   end
 
   alias success? :success
@@ -49,8 +58,29 @@ class ServiceResult
 
   def merge!(other)
     merge_success!(other)
-    merge_errors!(other)
-    merge_result!(other)
+    merge_dependent!(other)
+  end
+
+  def all_results
+    [result] + dependent_results.map(&:result)
+  end
+
+  def all_errors
+    [errors] + dependent_results.map(&:errors)
+  end
+
+  def self_and_dependent
+    [self] + dependent_results
+  end
+
+  def add_dependent!(dependent)
+    merge_success!(dependent)
+
+    inner_results = dependent.dependent_results
+    dependent.dependent_results = []
+
+    dependent_results << dependent
+    self.dependent_results += inner_results
   end
 
   private
@@ -59,19 +89,7 @@ class ServiceResult
     self.success &&= other.success
   end
 
-  def merge_result!(other)
-    if other.result.is_a?(Array)
-      self.result += other.result
-    else
-      self.result << other.result
-    end
-  end
-
-  def merge_errors!(other)
-    if other.errors.is_a?(Array)
-      self.errors += other.errors
-    else
-      self.errors << other.errors
-    end
+  def merge_dependent!(other)
+    self.dependent_results += other.dependent_results
   end
 end
