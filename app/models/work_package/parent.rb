@@ -39,8 +39,8 @@ module WorkPackage::Parent
                 :do_halt
 
   def parent=(work_package)
-    @parent_set = true
     parent_id_will_change! if parent_id != (work_package && work_package.id)
+    @parent_set = true
 
     if work_package
       @parent_id = work_package.id
@@ -52,12 +52,17 @@ module WorkPackage::Parent
   end
 
   def parent
-    @parent_object || parent_from_relation || parent_from_id
+    if @parent_set
+      @parent_object || parent_from_id
+    else
+      @parent_object || parent_from_relation || parent_from_id
+    end
   end
 
   def reload(*args)
     @parent_object = nil
     @parent_id = nil
+    @parent_set = nil
     @parent_id_previous_changes = nil
 
     super
@@ -74,16 +79,18 @@ module WorkPackage::Parent
   end
 
   def parent_id=(id)
-    @parent_set = true
     id = id.to_i > 0 ? id.to_i : nil
 
     parent_id_will_change! if parent_id != id
+    @parent_set = true
 
     @parent_object = nil if @parent_object && @parent_object.id != id
     @parent_id = id
   end
 
   def parent_id
+    return @parent_id if @parent_set
+
     @parent_id || parent && parent.id
   end
 
