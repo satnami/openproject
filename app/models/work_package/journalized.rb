@@ -106,5 +106,16 @@ module WorkPackage::Journalized
     # As after_create is run before after_save, and journal creation is triggered by an
     # after_save hook, we rely on after_save and a specific version here.
     after_save :reload_lock_and_timestamps, if: Proc.new { |wp| wp.lock_version.zero? }
+
+    def reload_lock_and_timestamps
+      # avoid using reload(select: %i(lock_version created_at updated_at))
+      # as we hook into the reload method at quite a few places
+      # to wipe instance variables
+
+      fetched_attributes = self.class.where(id: id).pluck(:lock_version, :created_at, :updated_at).first
+      self.lock_version = fetched_attributes[0]
+      self.created_at = fetched_attributes[1]
+      self.updated_at = fetched_attributes[2]
+    end
   end
 end

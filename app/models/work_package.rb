@@ -558,10 +558,6 @@ class WorkPackage < ActiveRecord::Base
     end
   end
 
-  def reload_lock_and_timestamps
-    reload(select: %i(lock_version created_at updated_at))
-  end
-
   def <=>(other)
     other.id <=> id
   end
